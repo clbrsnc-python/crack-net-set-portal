@@ -1,336 +1,371 @@
 import streamlit as st
 import hashlib
-from utils.db import get_supabase_client
+from supabase import create_client, Client
 
-# 1. Page Configuration (Must be the first Streamlit command)
+# ==========================================
+# PAGE CONFIGURATION
+# ==========================================
 st.set_page_config(
-    page_title="Crack NET-SET Portal",
-    page_icon="🎓",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Crack NET/SET Portal",
+    page_icon="📚",
+    layout="wide"
 )
 
-# 2. Bright Pastel GenZ Custom Styling
-def apply_genz_theme():
-    st.markdown("""
-        <style>
-        /* Google Font - Plus Jakarta Sans */
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        
-        html, body, [class*="css"] {
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        }
+# ==========================================
+# SUPABASE CONNECTION SETUP
+# ==========================================
+@st.cache_resource
+def get_supabase_client() -> Client:
+    """Initialize and cache the Supabase client using Streamlit secrets."""
+    try:
+        url = st.secrets["supabase"]["url"]
+        key = st.secrets["supabase"]["key"]
+        return create_client(url, key)
+    except Exception as e:
+        st.error("⚠️ Failed to connect to Supabase. Please ensure Secrets are configured correctly.")
+        st.stop()
 
-        /* Gradient Background */
-        .stApp {
-            background: linear-gradient(135deg, #FAF8FF 0%, #F5F3FF 50%, #EEF2FF 100%) !important;
-            color: #1E293B;
-        }
-
-        /* Header / Title Styling */
-        h1, h2, h3 {
-            color: #4C1D95 !important;
-            font-weight: 700 !important;
-            letter-spacing: -0.5px;
-        }
-
-        /* Pill-Shaped Animated Buttons */
-        .stButton > button {
-            border-radius: 25px !important;
-            background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%) !important;
-            color: #FFFFFF !important;
-            font-weight: 600 !important;
-            border: none !important;
-            padding: 10px 26px !important;
-            box-shadow: 0 4px 14px rgba(139, 92, 246, 0.25) !important;
-            transition: all 0.25s ease-in-out !important;
-            cursor: pointer !important;
-        }
-
-        .stButton > button:hover {
-            transform: translateY(-2px) scale(1.02) !important;
-            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4) !important;
-            background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%) !important;
-            color: #FFFFFF !important;
-        }
-
-        /* Form Inputs & Selectboxes */
-        div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
-            border-radius: 14px !important;
-            border: 1.5px solid #E9D5FF !important;
-            background-color: #FFFFFF !important;
-            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.04) !important;
-        }
-
-        div[data-baseweb="input"] > div:focus-within, div[data-baseweb="select"] > div:focus-within {
-            border-color: #8B5CF6 !important;
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2) !important;
-        }
-
-        /* Glassmorphism Card Containers */
-        div[data-testid="stMetric"], div[data-testid="stForm"], div.stExpander {
-            background: rgba(255, 255, 255, 0.85) !important;
-            backdrop-filter: blur(12px) !important;
-            -webkit-backdrop-filter: blur(12px) !important;
-            border-radius: 20px !important;
-            padding: 24px !important;
-            border: 1px solid rgba(233, 213, 255, 0.6) !important;
-            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.06) !important;
-        }
-
-        /* Tabs Styling */
-        button[data-baseweb="tab"] {
-            border-radius: 12px !important;
-            font-weight: 600 !important;
-            color: #6B21A8 !important;
-            padding: 10px 20px !important;
-        }
-
-        button[aria-selected="true"] {
-            background-color: #EDE9FE !important;
-            color: #5B21B6 !important;
-        }
-
-        /* Sidebar Styling */
-        section[data-testid="stSidebar"] {
-            background-color: #F3E8FF !important;
-            border-right: 1px solid #E9D5FF !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-apply_genz_theme()
-
-# 3. Master Subject List
-SUBJECT_LIST = sorted([
-    "Chemical Sciences", 
-    "Commerce", 
-    "Computer Science & Applications",
-    "Economics", 
-    "Education", 
-    "English", 
-    "Environmental Sciences",
-    "General Paper 1 (Teaching & Research Aptitude)",
-    "History", 
-    "Law",
-    "Library & Information Science",
-    "Life Sciences", 
-    "Mathematical Sciences",
-    "Physical Education", 
-    "Physical Sciences", 
-    "Political Science",
-    "Psychology",
-    "Sociology"
-])
-
-# 4. Password Hashing Helper
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
-
-# 5. Initialize Supabase
 db = get_supabase_client()
 
-# 6. Session State Initialization
+# ==========================================
+# HELPER FUNCTIONS
+# ==========================================
+def hash_text(text: str) -> str:
+    """Hashes string using SHA-256 for secure comparison."""
+    return hashlib.sha256(text.strip().encode()).hexdigest()
+
+def verify_credential(input_text: str, stored_val: str) -> bool:
+    """Verifies input string against stored string (supports both plain text and SHA-256 hash)."""
+    if not input_text or not stored_val:
+        return False
+    clean_input = input_text.strip()
+    clean_stored = stored_val.strip()
+    return clean_stored == clean_input or clean_stored == hash_text(clean_input)
+
+# ==========================================
+# SESSION STATE INITIALIZATION
+# ==========================================
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 if "user" not in st.session_state:
     st.session_state.user = None
 if "role" not in st.session_state:
     st.session_state.role = None
 
-# 7. Navigation & Top Header
-st.title("🎓 Crack NET-SET Preparation Portal")
-st.caption("Your all-in-one smart portal for UGC-NET & SET exam prep")
-
-# Logout button if logged in
-if st.session_state.user:
-    col_user, col_logout = st.columns([4, 1])
-    with col_user:
-        st.success(f"Logged in as **{st.session_state.user.get('name', 'User')}** ({st.session_state.role.upper()})")
-    with col_logout:
-        if st.button("🚪 Log Out"):
-            st.session_state.user = None
-            st.session_state.role = None
-            st.rerun()
-
-# 8. Authentication View (When not logged in)
-if not st.session_state.user:
-    tab_login, tab_register, tab_forgot = st.tabs(["🔒 Login", "📝 New Registration", "🔑 Forgot Password"])
-
-    # --- TAB 1: LOGIN ---
-    with tab_login:
-        st.subheader("Welcome Back!")
+# ==========================================
+# AUTHENTICATION PORTAL (LOGIN / REGISTER / RESET)
+# ==========================================
+def render_auth_page():
+    st.title("📚 Crack NET/SET Learning & Exam Portal")
+    st.markdown("---")
+    
+    auth_tab1, auth_tab2, auth_tab3 = st.tabs(["🔒 Login", "📝 New Registration", "🔑 Forgot Password"])
+    
+    # ------------------------------------------
+    # TAB 1: LOGIN
+    # ------------------------------------------
+    with auth_tab1:
+        st.subheader("Login to Your Account")
         with st.form("login_form"):
             email_input = st.text_input("Email Address").strip().lower()
-            password_input = st.text_input("Password", type="password")
-            submit_login = st.form_submit_button("Sign In")
-
-            if submit_login:
-                if not email_input or not password_input:
-                    st.warning("Please enter both email and password.")
-                else:
-                    try:
-                        res = db.table("users").select("*").eq("email", email_input).execute()
-                        if res.data and len(res.data) > 0:
-                            user_data = res.data[0]  # Extract first dictionary from list
-                            entered_hash = hash_password(password_input)
-                            stored_pass = user_data.get("password")
-
-                            # Check SHA-256 hash OR plain text fallback
-                            if stored_pass == entered_hash or stored_pass == password_input:
-                                st.session_state.user = user_data
-                                st.session_state.role = user_data.get("role", "student")
-                                st.toast("Login successful! Welcome back 🎉")
-                                st.rerun()
-                            else:
-                                st.error("Incorrect password. Please try again.")
+            pass_input = st.text_input("Password", type="password").strip()
+            login_submitted = st.form_submit_button("Sign In")
+            
+        if login_submitted:
+            if not email_input or not pass_input:
+                st.warning("Please enter both email and password.")
+            else:
+                try:
+                    res = db.table("users").select("*").eq("email", email_input).execute()
+                    if res.data and len(res.data) > 0:
+                        user_data = res.data[0]
+                        stored_password = user_data.get("password", "")
+                        
+                        if verify_credential(pass_input, stored_password):
+                            st.session_state.logged_in = True
+                            st.session_state.user = user_data
+                            st.session_state.role = user_data.get("role", "student")
+                            st.success(f"Welcome back, {user_data.get('name', 'User')}!")
+                            st.rerun()
                         else:
-                            st.error("No account found with this email address.")
-                    except Exception as err:
-                        st.error(f"Database error: {err}")
+                            st.error("Incorrect password. Please try again.")
+                    else:
+                        st.error("No account found with this email address.")
+                except Exception as e:
+                    st.error(f"Login failed: {e}")
 
-    # --- TAB 2: NEW REGISTRATION ---
-    with tab_register:
-        st.subheader("Create Your Account")
-        with st.form("register_form"):
+    # ------------------------------------------
+    # TAB 2: NEW REGISTRATION
+    # ------------------------------------------
+    with auth_tab2:
+        st.subheader("Create a New Account")
+        with st.form("register_form", clear_on_submit=True):
             reg_name = st.text_input("Full Name")
             reg_email = st.text_input("Email Address").strip().lower()
-            reg_subject = st.selectbox("Select Your Subject", SUBJECT_LIST)
-            reg_password = st.text_input("Password", type="password")
+            reg_subject = st.selectbox(
+                "Target Subject", 
+                ["Paper 1", "Computer Science", "Commerce", "History", "General Paper"]
+            )
+            reg_pass = st.text_input("Password", type="password")
             reg_question = st.selectbox(
-                "Security Question (For Password Recovery)", 
+                "Security Question",
                 [
-                    "What is your childhood pet's name?",
                     "What is your mother's maiden name?",
-                    "What was the name of your first school?",
-                    "What is your favorite book?"
+                    "What was the name of your first pet?",
+                    "What is your favorite book/subject?",
+                    "What city were you born in?"
                 ]
             )
-            reg_answer = st.text_input("Security Answer").strip().lower()
-            submit_reg = st.form_submit_button("Submit Registration")
-
-            if submit_reg:
-                if not (reg_name and reg_email and reg_password and reg_answer):
-                    st.warning("Please fill in all mandatory fields.")
-                else:
-                    try:
-                        existing = db.table("users").select("id").eq("email", reg_email).execute()
-                        if existing.data and len(existing.data) > 0:
-                            st.error("An account with this email already exists! Please log in.")
-                        else:
-                            new_user = {
-                                "name": reg_name,
-                                "email": reg_email,
-                                "subject": reg_subject,
-                                "password": hash_password(reg_password),
-                                "secret_question": reg_question,
-                                "secret_answer": hash_password(reg_answer),
-                                "role": "student"
-                            }
-                            db.table("users").insert(new_user).execute()
-                            st.success("Account created successfully! You can now log in.")
-                    except Exception as err:
-                        st.error(f"Failed to register: {err}")
-
-    # --- TAB 3: FORGOT PASSWORD ---
-    with tab_forgot:
-        st.subheader("Reset Password")
-        fp_email = st.text_input("Enter Registered Email").strip().lower()
-        if st.button("Fetch Security Question"):
-            if fp_email:
-                try:
-                    user_q = db.table("users").select("secret_question").eq("email", fp_email).execute()
-                    if user_q.data and len(user_q.data) > 0:
-                        st.session_state["fp_q"] = user_q.data[0]["secret_question"]
-                        st.session_state["fp_email"] = fp_email
-                    else:
-                        st.error("Email not found.")
-                except Exception as err:
-                    st.error(f"Error checking email: {err}")
+            reg_answer = st.text_input("Security Answer", type="password")
+            reg_submitted = st.form_submit_button("Submit Registration")
+            
+        if reg_submitted:
+            if not reg_name or not reg_email or not reg_pass or not reg_answer:
+                st.warning("Please fill in all required fields.")
             else:
-                st.warning("Please enter your email.")
-
-        if "fp_q" in st.session_state and st.session_state.get("fp_email") == fp_email:
-            st.info(f"**Security Question:** {st.session_state['fp_q']}")
-            with st.form("reset_form"):
-                ans_input = st.text_input("Security Answer").strip().lower()
-                new_pass = st.text_input("New Password", type="password")
-                submit_reset = st.form_submit_button("Update Password")
-
-                if submit_reset:
-                    if ans_input and new_pass:
-                        try:
-                            user_rec = db.table("users").select("*").eq("email", fp_email).execute()
-                            if user_rec.data and len(user_rec.data) > 0:
-                                u_data = user_rec.data[0]
-                                ans_hash = hash_password(ans_input)
-                                stored_ans = u_data.get("secret_answer")
-
-                                if stored_ans == ans_hash or stored_ans == ans_input:
-                                    db.table("users").update({"password": hash_password(new_pass)}).eq("email", fp_email).execute()
-                                    st.success("Password updated successfully! Please log in.")
-                                    del st.session_state["fp_q"]
-                                    del st.session_state["fp_email"]
-                                else:
-                                    st.error("Incorrect security answer.")
-                            else:
-                                st.error("Account not found.")
-                        except Exception as err:
-                            st.error(f"Failed to reset password: {err}")
+                try:
+                    existing = db.table("users").select("email").eq("email", reg_email).execute()
+                    if existing.data and len(existing.data) > 0:
+                        st.error("An account with this email already exists.")
                     else:
-                        st.warning("Please fill out all fields.")
+                        new_user = {
+                            "name": reg_name.strip(),
+                            "email": reg_email,
+                            "subject": reg_subject,
+                            "password": hash_text(reg_pass),
+                            "secret_question": reg_question,
+                            "secret_answer": hash_text(reg_answer),
+                            "role": "student"
+                        }
+                        db.table("users").insert(new_user).execute()
+                        st.success("✅ Registration successful! Please switch to the Login tab to sign in.")
+                except Exception as e:
+                    st.error(f"Registration failed: {e}")
 
-# 9. Main Application Dashboard (When Logged In)
+    # ------------------------------------------
+    # TAB 3: FORGOT PASSWORD
+    # ------------------------------------------
+    with auth_tab3:
+        st.subheader("Reset Your Password")
+        e_rec = st.text_input("Enter Registered Email").strip().lower()
+        
+        if e_rec:
+            try:
+                user_res = db.table("users").select("secret_question", "secret_answer").eq("email", e_rec).execute()
+                if user_res.data and len(user_res.data) > 0:
+                    user_record = user_res.data[0]
+                    sec_q = user_record.get("secret_question", "Security Question")
+                    stored_ans = user_record.get("secret_answer", "")
+                    
+                    st.info(f"**Security Question:** {sec_q}")
+                    
+                    with st.form("reset_pass_form"):
+                        ans_input = st.text_input("Your Security Answer", type="password")
+                        new_pass_input = st.text_input("Enter New Password", type="password")
+                        reset_submitted = st.form_submit_button("Reset Password")
+                        
+                    if reset_submitted:
+                        if verify_credential(ans_input, stored_ans):
+                            new_hashed_pass = hash_text(new_pass_input)
+                            db.table("users").update({"password": new_hashed_pass}).eq("email", e_rec).execute()
+                            st.success("✅ Password updated successfully! Please log in with your new password.")
+                        else:
+                            st.error("Incorrect security answer.")
+                else:
+                    st.warning("Email address not found.")
+            except Exception as e:
+                st.error(f"Error fetching user details: {e}")
+
+# ==========================================
+# MAIN APPLICATION LOGIC
+# ==========================================
+if not st.session_state.logged_in:
+    render_auth_page()
 else:
-    st.divider()
+    # Sidebar
+    st.sidebar.title(f"👋 Welcome, {st.session_state.user.get('name', 'User')}")
+    st.sidebar.write(f"**Role:** {st.session_state.role.upper()}")
+    st.sidebar.write(f"**Subject:** {st.session_state.user.get('subject', 'N/A')}")
+    st.sidebar.markdown("---")
+    
+    if st.sidebar.button("🚪 Log Out", use_container_width=True):
+        st.session_state.logged_in = False
+        st.session_state.user = None
+        st.session_state.role = None
+        st.rerun()
 
-    # Admin Control Panel Routing
+    # ------------------------------------------
+    # ADMIN CONTROL PANEL
+    # ------------------------------------------
     if st.session_state.role == "admin":
-        st.subheader("⚙️ Admin Control Panel")
+        st.title("⚙️ Admin Control Panel")
         admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📚 Content Uploads", "📥 Question Importer", "👥 User Management"])
 
+        # ======================================
+        # ADMIN TAB 1: CONTENT UPLOADS
+        # ======================================
         with admin_tab1:
-            st.write("### Upload PYQs & Syllabus PDFs")
-            selected_sub = st.selectbox("Target Subject", SUBJECT_LIST, key="admin_sub")
-            uploaded_file = st.file_uploader("Choose PDF / Resource File", type=["pdf", "txt", "docx"])
-            if st.button("Upload Resource"):
-                if uploaded_file:
-                    st.toast(f"Resource uploaded for {selected_sub}!")
-                else:
-                    st.warning("Please attach a file first.")
+            st.markdown("### 📚 Upload Content & Study Resources")
+            
+            with st.form("content_upload_form", clear_on_submit=True):
+                title = st.text_input("Resource Title", placeholder="e.g. Paper 1 Unit 1 Syllabus")
+                
+                subject = st.selectbox(
+                    "Select Subject", 
+                    ["Paper 1", "Computer Science", "Commerce", "History", "General Paper"]
+                )
+                
+                # 3 Main Resource Categories
+                category = st.selectbox(
+                    "Select Resource Category",
+                    ["Syllabus", "Learning Resources", "PYQs"]
+                )
+                
+                uploaded_file = st.file_uploader(
+                    "Upload File (PDF, TXT, DOCX)", 
+                    type=["pdf", "txt", "docx"]
+                )
+                
+                submit_btn = st.form_submit_button("🚀 Upload Resource")
 
+            if submit_btn:
+                if not title.strip():
+                    st.warning("Please enter a title for the resource.")
+                elif not uploaded_file:
+                    st.warning("Please select a file to upload.")
+                else:
+                    with st.spinner("Uploading file and updating database..."):
+                        try:
+                            file_bytes = uploaded_file.read()
+                            file_path = f"{category}/{uploaded_file.name}"
+                            
+                            db.storage.from_("materials").upload(
+                                file_path, 
+                                file_bytes, 
+                                file_options={"content-type": uploaded_file.type, "upsert": "true"}
+                            )
+                            
+                            file_url = db.storage.from_("materials").get_public_url(file_path)
+                            
+                            content_data = {
+                                "title": title.strip(),
+                                "subject": subject,
+                                "category": category,
+                                "file_url": file_url
+                            }
+                            
+                            db.table("content").insert(content_data).execute()
+                            st.success(f"✅ Successfully uploaded **'{title}'** under **{category}** ({subject})!")
+                        except Exception as e:
+                            st.error(f"❌ Upload failed: {e}")
+
+        # ======================================
+        # ADMIN TAB 2: QUESTION IMPORTER
+        # ======================================
         with admin_tab2:
-            st.write("### Batch Import Questions (.txt)")
-            st.caption("Upload text files formatted with Q:, A), B), C), D), ANS:, EXP:")
-            txt_file = st.file_uploader("Select .txt Question Batch", type=["txt"])
-            if st.button("Import Questions"):
-                if txt_file:
-                    st.success("Questions successfully parsed and saved to the database!")
+            st.markdown("### 📥 Question Importer")
+            st.info("Parse and import multiple-choice questions (MCQs) into the database.")
+            
+            with st.form("question_import_form", clear_on_submit=True):
+                q_subject = st.selectbox("Subject for Questions", ["Paper 1", "Computer Science", "Commerce", "History"])
+                q_topic = st.text_input("Topic / Unit Name", placeholder="e.g. Teaching Aptitude")
+                q_text = st.text_area("Paste MCQ Block (Question, Options A-D, Answer, Explanation)", height=200)
+                q_submit = st.form_submit_button("Import Questions")
+                
+            if q_submit:
+                if q_text.strip():
+                    try:
+                        q_data = {
+                            "subject": q_subject,
+                            "topic": q_topic,
+                            "question_text": q_text.strip()
+                        }
+                        db.table("questions").insert(q_data).execute()
+                        st.success("✅ Questions imported successfully!")
+                    except Exception as e:
+                        st.error(f"Failed to import questions: {e}")
                 else:
-                    st.warning("Please choose a file.")
+                    st.warning("Please enter question text.")
 
+        # ======================================
+        # ADMIN TAB 3: USER MANAGEMENT
+        # ======================================
         with admin_tab3:
-            st.write("### Manage Users & Roles")
+            st.markdown("### 👥 Manage Registered Users")
             try:
-                all_users = db.table("users").select("name", "email", "subject", "role").execute()
-                if all_users.data:
-                    st.dataframe(all_users.data, use_container_width=True)
+                users_res = db.table("users").select("id, name, email, subject, role").execute()
+                if users_res.data:
+                    st.dataframe(users_res.data, use_container_width=True)
+                    
+                    st.markdown("#### Promote/Change User Role")
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        target_email = st.selectbox("Select User Email", [u["email"] for u in users_res.data])
+                    with col2:
+                        new_role = st.selectbox("Select New Role", ["student", "admin"])
+                    
+                    if st.button("Update User Role"):
+                        db.table("users").update({"role": new_role}).eq("email", target_email).execute()
+                        st.success(f"Updated {target_email} role to {new_role}!")
+                        st.rerun()
+                else:
+                    st.info("No registered users found.")
             except Exception as e:
-                st.info("User table overview unavailable.")
+                st.error(f"Failed to fetch users: {e}")
 
-    # Student Control Panel Routing
+    # ------------------------------------------
+    # STUDENT LEARNING & QUIZ PORTAL
+    # ------------------------------------------
     else:
-        st.subheader(f"📖 Student Portal — {st.session_state.user.get('subject', 'General Paper 1')}")
-        std_tab1, std_tab2, std_tab3 = st.tabs(["📝 Mock Tests", "📚 PYQs & Syllabus", "📊 My Performance"])
+        st.title("🎓 Student Learning Portal")
+        student_tab1, student_tab2 = st.tabs(["📚 Study Resources", "📝 Practice Quizzes"])
 
-        with std_tab1:
-            st.write("### Available Timed Tests")
-            st.info("Select a test from your subject to begin practicing under exam conditions.")
-            st.button("Start General Paper 1 Mock Test")
+        # ======================================
+        # STUDENT TAB 1: STUDY RESOURCES
+        # ======================================
+        with student_tab1:
+            st.subheader("📚 Learning Resources & Course Material")
+            
+            filter_col1, filter_col2 = st.columns(2)
+            with filter_col1:
+                cat_filter = st.selectbox("Filter by Category", ["All Categories", "Syllabus", "Learning Resources", "PYQs"])
+            with filter_col2:
+                subj_filter = st.selectbox("Filter by Subject", ["All Subjects", "Paper 1", "Computer Science", "Commerce", "History"])
+            
+            try:
+                query = db.table("content").select("*")
+                if cat_filter != "All Categories":
+                    query = query.eq("category", cat_filter)
+                if subj_filter != "All Subjects":
+                    query = query.eq("subject", subj_filter)
+                    
+                res = query.execute()
+                
+                if res.data and len(res.data) > 0:
+                    for item in res.data:
+                        with st.expander(f"📄 {item.get('title', 'Untitled')} ({item.get('category', 'General')})"):
+                            st.write(f"**Subject:** {item.get('subject', 'General')}")
+                            st.write(f"**Category:** {item.get('category', 'N/A')}")
+                            if item.get("file_url"):
+                                st.markdown(f"[📥 Download Resource]({item.get('file_url')})")
+                else:
+                    st.info("No materials found for the selected category/subject.")
+            except Exception as e:
+                st.error(f"Error fetching study resources: {e}")
 
-        with std_tab2:
-            st.write("### Study Materials")
-            st.write("Download past year question papers and official syllabus copies.")
-
-        with std_tab3:
-            st.write("### Track Your Progress")
-            st.metric(label="Tests Attempted", value="0")
-            st.metric(label="Average Accuracy", value="0%")
+        # ======================================
+        # STUDENT TAB 2: PRACTICE QUIZZES
+        # ======================================
+        with student_tab2:
+            st.subheader("📝 Practice Questions & MCQs")
+            try:
+                q_res = db.table("questions").select("*").execute()
+                if q_res.data and len(q_res.data) > 0:
+                    for idx, q in enumerate(q_res.data, 1):
+                        st.markdown(f"**Q{idx}:** {q.get('question_text', '')}")
+                        st.caption(f"Subject: {q.get('subject', '')} | Topic: {q.get('topic', '')}")
+                        st.markdown("---")
+                else:
+                    st.info("No practice questions available yet.")
+            except Exception as e:
+                st.error(f"Error loading practice questions: {e}")
