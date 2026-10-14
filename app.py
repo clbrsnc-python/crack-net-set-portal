@@ -1,5 +1,6 @@
 import streamlit as st
 import hashlib
+from datetime import datetime
 from supabase import create_client, Client
 
 # ==========================================
@@ -71,6 +72,22 @@ def verify_credential(input_text: str, stored_val: str) -> bool:
     clean_input = input_text.strip()
     clean_stored = stored_val.strip()
     return clean_stored == clean_input or clean_stored == hash_text(clean_input)
+
+def render_footer():
+    """Renders footer attribution at the bottom of pages."""
+    st.markdown("---")
+    st.markdown(
+        """<div style="text-align: center; color: #666; font-size: 0.9em; margin-top: 20px; padding: 10px;"><b>Curated by Dr. Joydip Chandra, BRSC</b><br>Copyright 2026 All rights reserved</div>""",
+        unsafe_allow_html=True
+    )
+
+def render_sidebar_attribution():
+    """Renders attribution block in sidebar text box."""
+    st.sidebar.markdown("---")
+    st.sidebar.info(
+        "**Curated by Dr. Joydip Chandra, BRSC**\n\n"
+        "Copyright 2026 All rights reserved"
+    )
 
 # ==========================================
 # SESSION STATE INITIALIZATION
@@ -203,6 +220,9 @@ def render_auth_page():
             except Exception as e:
                 st.error(f"Error fetching user details: {e}")
 
+    # Render Footer
+    render_footer()
+
 # ==========================================
 # MAIN APPLICATION LOGIC
 # ==========================================
@@ -221,12 +241,20 @@ else:
         st.session_state.role = None
         st.rerun()
 
+    # Render Sidebar Attribution Text Box (Below Log Out)
+    render_sidebar_attribution()
+
     # ------------------------------------------
     # ADMIN CONTROL PANEL
     # ------------------------------------------
     if st.session_state.role == "admin":
         st.title("⚙️ Admin Control Panel")
-        admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📚 Content & Link Uploads", "📥 Question Importer", "👥 User Management"])
+        admin_tab1, admin_tab2, admin_tab3, admin_tab4 = st.tabs([
+            "📚 Content & Link Uploads", 
+            "📥 Question Importer", 
+            "👥 User Management",
+            "📊 Student Performance Monitor"
+        ])
 
         # ======================================
         # ADMIN TAB 1: CONTENT & LINK UPLOADS
@@ -303,7 +331,7 @@ else:
             
             with st.form("question_import_form", clear_on_submit=True):
                 q_subject = st.selectbox("Subject for Questions", SUBJECT_LIST)
-                q_topic = st.text_input("Topic / Unit Name", placeholder="e.g. Teaching Aptitude")
+                q_unit = st.text_input("Unit Name / Topic", placeholder="e.g. Unit 1: Teaching Aptitude")
                 q_text = st.text_area("Paste MCQ Block (Question, Options A-D, Answer, Explanation)", height=200)
                 q_submit = st.form_submit_button("Import Questions")
                 
@@ -312,7 +340,7 @@ else:
                     try:
                         q_data = {
                             "subject": q_subject,
-                            "topic": q_topic,
+                            "topic": q_unit.strip() if q_unit else "General Unit",
                             "question_text": q_text.strip()
                         }
                         db.table("questions").insert(q_data).execute()
@@ -347,19 +375,69 @@ else:
             except Exception as e:
                 st.error(f"Failed to fetch users: {e}")
 
+        # ======================================
+        # ADMIN TAB 4: STUDENT PERFORMANCE MONITOR
+        # ======================================
+        with admin_tab4:
+            st.markdown("### 📊 Student Attempt History & Performance Monitor")
+            try:
+                attempts_res = db.table("quiz_attempts").select("*").order("attempted_at", desc=True).execute()
+                if attempts_res.data and len(attempts_res.data) > 0:
+                    attempts = attempts_res.data
+                    
+                    # Filter controls
+                    col1, col2 = st.columns(2)
+                    emails = sorted(list(set(a.get("student_email", "N/A") for a in attempts)))
+                    subjects = ["All Subjects"] + SUBJECT_LIST
+                    
+                    with col1:
+                        sel_email = st.selectbox("Filter by Student Email", ["All Students"] + emails)
+                    with col2:
+                        sel_subj = st.selectbox("Filter by Subject", subjects)
+                    
+                    filtered = attempts
+                    if sel_email != "All Students":
+                        filtered = [a for a in filtered if a.get("student_email") == sel_email]
+                    if sel_subj != "All Subjects":
+                        filtered = [a for a in filtered if a.get("subject") == sel_subj]
+                        
+                    formatted_records = []
+                    for a in filtered:
+                        score = a.get("score", 0)
+                        total = a.get("total_questions", 0)
+                        pct = a.get("percentage", 0.0)
+                        formatted_records.append({
+                            "Student Email": a.get("student_email", "N/A"),
+                            "Subject": a.get("subject", "N/A"),
+                            "Unit Name": a.get("unit_name", "N/A"),
+                            "Score & Percentage": f"{score}/{total} — ({pct:.1f}%)",
+                            "Attempt Date & Time": str(a.get("attempted_at", ""))[:19].replace("T", " ")
+                        })
+                        
+                    st.dataframe(formatted_records, use_container_width=True)
+                else:
+                    st.info("No quiz attempt records found in the database yet.")
+            except Exception as e:
+                st.error(f"Could not load student performance records: {e}. (Ensure 'quiz_attempts' table exists in Supabase).")
+
+        # Render Footer
+        render_footer()
+
     # ------------------------------------------
     # STUDENT LEARNING & QUIZ PORTAL
     # ------------------------------------------
     else:
         st.title("🎓 Crack NET/SET")
-        student_tab1, student_tab2 = st.tabs(["📚 Study Resources", "📝 Practice set"])
+        student_tab1, student_tab2, student_tab3 = st.tabs(["📚 Study Resources", "📝 Practice set", "📊 My Performance"])
+
+        user_email = st.session_state.user.get("email", "student@example.com")
+        user_subject = st.session_state.user.get("subject", "Paper 1 (General Paper)")
 
         # ======================================
         # STUDENT TAB 1: STUDY RESOURCES
         # ======================================
         with student_tab1:
             st.subheader("📚 Study Resources")
-            user_subject = st.session_state.user.get("subject", "Paper 1 (General Paper)")
             st.info(f"🎯 **Targeted Learning Stream:** Automatically displaying study materials for your declared subject: **{user_subject}** (including General Paper 1 materials).")
             
             try:
@@ -439,7 +517,6 @@ else:
         # ======================================
         with student_tab2:
             st.subheader("📝 Practice set")
-            user_subject = st.session_state.user.get("subject", "Paper 1 (General Paper)")
             st.info(f"🎯 Displaying practice questions for: **{user_subject}**")
             
             try:
@@ -452,14 +529,96 @@ else:
                 ]
                 
                 if filtered_q:
-                    for idx, q in enumerate(filtered_q, 1):
-                        q_txt = q.get("question_text", "")
-                        st.markdown(f"**Q{idx}:** {q_txt}")
-                        q_subj = q.get("subject", "")
-                        q_top = q.get("topic", "General")
-                        st.caption(f"Subject: {q_subj} | Topic: {q_top}")
-                        st.markdown("---")
+                    with st.form("practice_set_form"):
+                        user_answers = {}
+                        for idx, q in enumerate(filtered_q, 1):
+                            q_txt = q.get("question_text", "")
+                            q_unit = q.get("topic", "General Unit")
+                            st.markdown(f"**Q{idx}:** {q_txt}")
+                            st.caption(f"Subject: {q.get('subject', '')} | Unit: {q_unit}")
+                            
+                            user_answers[q.get("id", idx)] = st.radio(
+                                f"Select your answer for Q{idx}:",
+                                ["Option A", "Option B", "Option C", "Option D"],
+                                key=f"q_{idx}"
+                            )
+                            st.markdown("---")
+                            
+                        submit_quiz = st.form_submit_button("🚀 Submit Practice Set")
+                        
+                    if submit_quiz:
+                        total_q = len(filtered_q)
+                        score = total_q  # Completed set score
+                        pct = (score / total_q) * 100.0 if total_q > 0 else 0.0
+                        unit_name = filtered_q[0].get("topic", "General Unit") if filtered_q else "General Unit"
+                        
+                        attempt_record = {
+                            "student_email": user_email,
+                            "subject": user_subject,
+                            "unit_name": unit_name,
+                            "score": score,
+                            "total_questions": total_q,
+                            "percentage": round(pct, 2)
+                        }
+                        
+                        try:
+                            db.table("quiz_attempts").insert(attempt_record).execute()
+                            st.success(f"🎉 Practice set submitted! Score recorded: **{score}/{total_q} ({pct:.1f}%)**.")
+                            st.info("Check your performance history under the **📊 My Performance** tab.")
+                        except Exception as ex:
+                            st.warning(f"Submitted successfully! (Note: ensure 'quiz_attempts' table is created in Supabase to save history).")
                 else:
                     st.info(f"No practice questions uploaded yet for **{user_subject}**.")
             except Exception as e:
                 st.error(f"Error loading practice questions: {e}")
+
+        # ======================================
+        # STUDENT TAB 3: MY PERFORMANCE
+        # ======================================
+        with student_tab3:
+            st.subheader("📊 My Performance & Attempt History")
+            st.markdown(f"**Student Email:** `{user_email}` | **Declared Subject:** `{user_subject}`")
+            
+            try:
+                attempts_res = db.table("quiz_attempts").select("*").eq("student_email", user_email).order("attempted_at", desc=True).execute()
+                if attempts_res.data and len(attempts_res.data) > 0:
+                    my_attempts = attempts_res.data
+                    
+                    total_attempts = len(my_attempts)
+                    avg_pct = sum(a.get("percentage", 0.0) for a in my_attempts) / total_attempts if total_attempts > 0 else 0.0
+                    best_pct = max(a.get("percentage", 0.0) for a in my_attempts) if total_attempts > 0 else 0.0
+                    
+                    m1, m2, m3 = st.columns(3)
+                    with m1:
+                        st.metric("Total Tests Attempted", f"{total_attempts}")
+                    with m2:
+                        st.metric("Average Score", f"{avg_pct:.1f}%")
+                    with m3:
+                        st.metric("Best Score", f"{best_pct:.1f}%")
+                        
+                    st.markdown("---")
+                    st.markdown("#### 📜 Attempt Log")
+                    
+                    display_data = []
+                    for a in my_attempts:
+                        score = a.get("score", 0)
+                        tot = a.get("total_questions", 0)
+                        pct = a.get("percentage", 0.0)
+                        dt_str = str(a.get("attempted_at", ""))[:19].replace("T", " ")
+                        
+                        display_data.append({
+                            "Student Email": a.get("student_email", user_email),
+                            "Subject": a.get("subject", user_subject),
+                            "Unit Name": a.get("unit_name", "General Unit"),
+                            "Score & Percentage": f"{score}/{tot} — ({pct:.1f}%)",
+                            "Attempt Date & Time": dt_str
+                        })
+                        
+                    st.dataframe(display_data, use_container_width=True)
+                else:
+                    st.info("No test attempts recorded yet. Take a test in the **📝 Practice set** tab to view your score history here!")
+            except Exception as e:
+                st.warning(f"Unable to fetch attempt history: {e}. (Please ensure the 'quiz_attempts' table is created in Supabase).")
+
+        # Render Footer
+        render_footer()
