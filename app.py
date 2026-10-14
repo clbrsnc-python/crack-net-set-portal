@@ -13,7 +13,7 @@ st.set_page_config(
 
 # ==========================================
 # MASTER SUBJECT LIST
-# (Centralized list of subjects across the entire portal)
+# (Centralized subject list used across the entire portal)
 # ==========================================
 SUBJECT_LIST = [
     "Paper 1 (General Paper)",
@@ -218,38 +218,39 @@ else:
     # ------------------------------------------
     if st.session_state.role == "admin":
         st.title("⚙️ Admin Control Panel")
-        admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📚 Content & Video Uploads", "📥 Question Importer", "👥 User Management"])
+        admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📚 Content & Link Uploads", "📥 Question Importer", "👥 User Management"])
 
         # ======================================
-        # ADMIN TAB 1: CONTENT & VIDEO UPLOADS
+        # ADMIN TAB 1: CONTENT & LINK UPLOADS
         # ======================================
         with admin_tab1:
-            st.markdown("### 📚 Upload Resources & Video Lectures")
+            st.markdown("### 📚 Upload Resources, Notes & External Links")
+            
+            # 💡 Resource type radio placed OUTSIDE st.form so dynamic rerun works instantly!
+            resource_type = st.radio(
+                "Select Resource Type",
+                ["📄 File Upload (PDF, TXT, DOCX)", "🔗 External Link (YouTube, Drive, Web Link)"],
+                horizontal=True
+            )
             
             with st.form("content_upload_form", clear_on_submit=True):
-                title = st.text_input("Resource / Lecture Title", placeholder="e.g. Paper 1 Research Methodology Lecture 1")
+                title = st.text_input("Resource / Link Title", placeholder="e.g. Paper 1 Unit 1 Complete Notes / Video Lecture")
                 
                 subject = st.selectbox("Select Subject", SUBJECT_LIST)
                 
                 category = st.selectbox(
                     "Select Resource Category",
-                    ["Syllabus", "Learning Resources", "PYQs", "Video Lectures"]
-                )
-                
-                # Format Choice: File Upload vs Video Link
-                resource_type = st.radio(
-                    "Select Resource Format",
-                    ["File Upload (PDF, TXT, DOCX)", "Video Link (YouTube / Web URL)"],
-                    horizontal=True
+                    ["Syllabus", "Learning Resources", "PYQs", "Video Lectures", "Useful Links"]
                 )
                 
                 uploaded_file = None
-                video_url_input = ""
+                link_input = ""
                 
+                # Show file uploader or text input based on dynamic choice
                 if "File Upload" in resource_type:
                     uploaded_file = st.file_uploader("Upload Document File", type=["pdf", "txt", "docx"])
                 else:
-                    video_url_input = st.text_input("Paste Video Link (YouTube URL, MP4 Link)", placeholder="https://www.youtube.com/watch?v=...")
+                    link_input = st.text_input("Paste Link (YouTube URL, Google Drive, Website Link)", placeholder="https://...")
                 
                 submit_btn = st.form_submit_button("🚀 Save & Publish Resource")
 
@@ -257,11 +258,11 @@ else:
                 if not title.strip():
                     st.warning("Please enter a title for the resource.")
                 elif "File Upload" in resource_type and not uploaded_file:
-                    st.warning("Please attach a file to upload.")
-                elif "Video Link" in resource_type and not video_url_input.strip():
-                    st.warning("Please enter a valid video URL.")
+                    st.warning("Please select a file to upload.")
+                elif "External Link" in resource_type and not link_input.strip():
+                    st.warning("Please enter a valid URL / link.")
                 else:
-                    with st.spinner("Publishing resource to portal..."):
+                    with st.spinner("Publishing resource..."):
                         try:
                             final_url = ""
                             
@@ -276,7 +277,7 @@ else:
                                 )
                                 final_url = db.storage.from_("materials").get_public_url(file_path)
                             else:
-                                final_url = video_url_input.strip()
+                                final_url = link_input.strip()
                             
                             content_data = {
                                 "title": title.strip(),
@@ -288,7 +289,7 @@ else:
                             db.table("content").insert(content_data).execute()
                             st.success(f"✅ Successfully published **'{title}'** under **{category}** ({subject})!")
                         except Exception as e:
-                            st.error(f"❌ Failed to publish resource: {e}")
+                            st.error(f"❌ Failed to publish: {e}")
 
         # ======================================
         # ADMIN TAB 2: QUESTION IMPORTER
@@ -329,7 +330,7 @@ else:
                     st.dataframe(users_res.data, use_container_width=True)
                     
                     st.markdown("#### Promote/Change User Role")
-                    col1, col2 = st.columns(2)
+                    col1, col2 = st.columns([2, 1])
                     with col1:
                         target_email = st.selectbox("Select User Email", [u["email"] for u in users_res.data])
                     with col2:
@@ -349,17 +350,17 @@ else:
     # ------------------------------------------
     else:
         st.title("🎓 Student Learning Portal")
-        student_tab1, student_tab2 = st.tabs(["📚 Study Resources & Videos", "📝 Practice Quizzes"])
+        student_tab1, student_tab2 = st.tabs(["📚 Study Resources & Links", "📝 Practice Quizzes"])
 
         # ======================================
-        # STUDENT TAB 1: STUDY RESOURCES & VIDEOS
+        # STUDENT TAB 1: STUDY RESOURCES & LINKS
         # ======================================
         with student_tab1:
-            st.subheader("📚 Learning Resources, PYQs & Video Lectures")
+            st.subheader("📚 Learning Resources, PYQs & Video/Web Links")
             
             filter_col1, filter_col2 = st.columns(2)
             with filter_col1:
-                cat_filter = st.selectbox("Filter by Category", ["All Categories", "Syllabus", "Learning Resources", "PYQs", "Video Lectures"])
+                cat_filter = st.selectbox("Filter by Category", ["All Categories", "Syllabus", "Learning Resources", "PYQs", "Video Lectures", "Useful Links"])
             with filter_col2:
                 subj_filter = st.selectbox("Filter by Subject", ["All Subjects"] + SUBJECT_LIST)
             
@@ -383,12 +384,12 @@ else:
                             st.write(f"**Subject:** {subj}")
                             st.write(f"**Category:** {cat}")
                             
-                            # Render embedded video player if YouTube link or Video Lecture
-                            if url and ("youtube.com" in url or "youtu.be" in url or cat == "Video Lectures"):
-                                st.markdown("#### 🎬 Video Lecture")
-                                st.video(url)
-                            elif url:
-                                st.markdown(f"[📥 Download / View Document]({url})")
+                            if url:
+                                if "youtube.com" in url or "youtu.be" in url:
+                                    st.markdown("#### 🎬 Embedded Video Lecture")
+                                    st.video(url)
+                                else:
+                                    st.markdown(f"[🔗 Open / Download Resource]({url})")
                             else:
                                 st.info("No link attached.")
                 else:
