@@ -12,6 +12,28 @@ st.set_page_config(
 )
 
 # ==========================================
+# MASTER SUBJECT LIST
+# (Centralized list of subjects across the entire portal)
+# ==========================================
+SUBJECT_LIST = [
+    "Paper 1 (General Paper)",
+    "Computer Science & Applications",
+    "Commerce",
+    "Economics",
+    "English",
+    "History",
+    "Management",
+    "Political Science",
+    "Sociology",
+    "Mathematical Sciences",
+    "Physical Sciences",
+    "Chemical Sciences",
+    "Life Sciences",
+    "Environmental Sciences",
+    "Library & Information Science"
+]
+
+# ==========================================
 # SUPABASE CONNECTION SETUP
 # ==========================================
 @st.cache_resource
@@ -102,10 +124,7 @@ def render_auth_page():
         with st.form("register_form", clear_on_submit=True):
             reg_name = st.text_input("Full Name")
             reg_email = st.text_input("Email Address").strip().lower()
-            reg_subject = st.selectbox(
-                "Target Subject", 
-                ["Paper 1", "Computer Science", "Commerce", "History", "General Paper"]
-            )
+            reg_subject = st.selectbox("Target Subject", SUBJECT_LIST)
             reg_pass = st.text_input("Password", type="password")
             reg_question = st.selectbox(
                 "Security Question",
@@ -199,65 +218,77 @@ else:
     # ------------------------------------------
     if st.session_state.role == "admin":
         st.title("⚙️ Admin Control Panel")
-        admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📚 Content Uploads", "📥 Question Importer", "👥 User Management"])
+        admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📚 Content & Video Uploads", "📥 Question Importer", "👥 User Management"])
 
         # ======================================
-        # ADMIN TAB 1: CONTENT UPLOADS
+        # ADMIN TAB 1: CONTENT & VIDEO UPLOADS
         # ======================================
         with admin_tab1:
-            st.markdown("### 📚 Upload Content & Study Resources")
+            st.markdown("### 📚 Upload Resources & Video Lectures")
             
             with st.form("content_upload_form", clear_on_submit=True):
-                title = st.text_input("Resource Title", placeholder="e.g. Paper 1 Unit 1 Syllabus")
+                title = st.text_input("Resource / Lecture Title", placeholder="e.g. Paper 1 Research Methodology Lecture 1")
                 
-                subject = st.selectbox(
-                    "Select Subject", 
-                    ["Paper 1", "Computer Science", "Commerce", "History", "General Paper"]
-                )
+                subject = st.selectbox("Select Subject", SUBJECT_LIST)
                 
-                # 3 Main Resource Categories
                 category = st.selectbox(
                     "Select Resource Category",
-                    ["Syllabus", "Learning Resources", "PYQs"]
+                    ["Syllabus", "Learning Resources", "PYQs", "Video Lectures"]
                 )
                 
-                uploaded_file = st.file_uploader(
-                    "Upload File (PDF, TXT, DOCX)", 
-                    type=["pdf", "txt", "docx"]
+                # Format Choice: File Upload vs Video Link
+                resource_type = st.radio(
+                    "Select Resource Format",
+                    ["File Upload (PDF, TXT, DOCX)", "Video Link (YouTube / Web URL)"],
+                    horizontal=True
                 )
                 
-                submit_btn = st.form_submit_button("🚀 Upload Resource")
+                uploaded_file = None
+                video_url_input = ""
+                
+                if "File Upload" in resource_type:
+                    uploaded_file = st.file_uploader("Upload Document File", type=["pdf", "txt", "docx"])
+                else:
+                    video_url_input = st.text_input("Paste Video Link (YouTube URL, MP4 Link)", placeholder="https://www.youtube.com/watch?v=...")
+                
+                submit_btn = st.form_submit_button("🚀 Save & Publish Resource")
 
             if submit_btn:
                 if not title.strip():
                     st.warning("Please enter a title for the resource.")
-                elif not uploaded_file:
-                    st.warning("Please select a file to upload.")
+                elif "File Upload" in resource_type and not uploaded_file:
+                    st.warning("Please attach a file to upload.")
+                elif "Video Link" in resource_type and not video_url_input.strip():
+                    st.warning("Please enter a valid video URL.")
                 else:
-                    with st.spinner("Uploading file and updating database..."):
+                    with st.spinner("Publishing resource to portal..."):
                         try:
-                            file_bytes = uploaded_file.read()
-                            file_path = f"{category}/{uploaded_file.name}"
+                            final_url = ""
                             
-                            db.storage.from_("materials").upload(
-                                file_path, 
-                                file_bytes, 
-                                file_options={"content-type": uploaded_file.type, "upsert": "true"}
-                            )
-                            
-                            file_url = db.storage.from_("materials").get_public_url(file_path)
+                            if "File Upload" in resource_type and uploaded_file:
+                                file_bytes = uploaded_file.read()
+                                file_path = f"{category}/{uploaded_file.name}"
+                                
+                                db.storage.from_("materials").upload(
+                                    file_path, 
+                                    file_bytes, 
+                                    file_options={"content-type": uploaded_file.type, "upsert": "true"}
+                                )
+                                final_url = db.storage.from_("materials").get_public_url(file_path)
+                            else:
+                                final_url = video_url_input.strip()
                             
                             content_data = {
                                 "title": title.strip(),
                                 "subject": subject,
                                 "category": category,
-                                "file_url": file_url
+                                "file_url": final_url
                             }
                             
                             db.table("content").insert(content_data).execute()
-                            st.success(f"✅ Successfully uploaded **'{title}'** under **{category}** ({subject})!")
+                            st.success(f"✅ Successfully published **'{title}'** under **{category}** ({subject})!")
                         except Exception as e:
-                            st.error(f"❌ Upload failed: {e}")
+                            st.error(f"❌ Failed to publish resource: {e}")
 
         # ======================================
         # ADMIN TAB 2: QUESTION IMPORTER
@@ -267,7 +298,7 @@ else:
             st.info("Parse and import multiple-choice questions (MCQs) into the database.")
             
             with st.form("question_import_form", clear_on_submit=True):
-                q_subject = st.selectbox("Subject for Questions", ["Paper 1", "Computer Science", "Commerce", "History"])
+                q_subject = st.selectbox("Subject for Questions", SUBJECT_LIST)
                 q_topic = st.text_input("Topic / Unit Name", placeholder="e.g. Teaching Aptitude")
                 q_text = st.text_area("Paste MCQ Block (Question, Options A-D, Answer, Explanation)", height=200)
                 q_submit = st.form_submit_button("Import Questions")
@@ -298,7 +329,7 @@ else:
                     st.dataframe(users_res.data, use_container_width=True)
                     
                     st.markdown("#### Promote/Change User Role")
-                    col1, col2 = st.columns([2, 1])
+                    col1, col2 = st.columns(2)
                     with col1:
                         target_email = st.selectbox("Select User Email", [u["email"] for u in users_res.data])
                     with col2:
@@ -318,19 +349,19 @@ else:
     # ------------------------------------------
     else:
         st.title("🎓 Student Learning Portal")
-        student_tab1, student_tab2 = st.tabs(["📚 Study Resources", "📝 Practice Quizzes"])
+        student_tab1, student_tab2 = st.tabs(["📚 Study Resources & Videos", "📝 Practice Quizzes"])
 
         # ======================================
-        # STUDENT TAB 1: STUDY RESOURCES
+        # STUDENT TAB 1: STUDY RESOURCES & VIDEOS
         # ======================================
         with student_tab1:
-            st.subheader("📚 Learning Resources & Course Material")
+            st.subheader("📚 Learning Resources, PYQs & Video Lectures")
             
             filter_col1, filter_col2 = st.columns(2)
             with filter_col1:
-                cat_filter = st.selectbox("Filter by Category", ["All Categories", "Syllabus", "Learning Resources", "PYQs"])
+                cat_filter = st.selectbox("Filter by Category", ["All Categories", "Syllabus", "Learning Resources", "PYQs", "Video Lectures"])
             with filter_col2:
-                subj_filter = st.selectbox("Filter by Subject", ["All Subjects", "Paper 1", "Computer Science", "Commerce", "History"])
+                subj_filter = st.selectbox("Filter by Subject", ["All Subjects"] + SUBJECT_LIST)
             
             try:
                 query = db.table("content").select("*")
@@ -343,11 +374,23 @@ else:
                 
                 if res.data and len(res.data) > 0:
                     for item in res.data:
-                        with st.expander(f"📄 {item.get('title', 'Untitled')} ({item.get('category', 'General')})"):
-                            st.write(f"**Subject:** {item.get('subject', 'General')}")
-                            st.write(f"**Category:** {item.get('category', 'N/A')}")
-                            if item.get("file_url"):
-                                st.markdown(f"[📥 Download Resource]({item.get('file_url')})")
+                        title = item.get('title', 'Untitled Resource')
+                        cat = item.get('category', 'General')
+                        subj = item.get('subject', 'General')
+                        url = item.get('file_url', '')
+                        
+                        with st.expander(f"📌 {title} ({cat})"):
+                            st.write(f"**Subject:** {subj}")
+                            st.write(f"**Category:** {cat}")
+                            
+                            # Render embedded video player if YouTube link or Video Lecture
+                            if url and ("youtube.com" in url or "youtu.be" in url or cat == "Video Lectures"):
+                                st.markdown("#### 🎬 Video Lecture")
+                                st.video(url)
+                            elif url:
+                                st.markdown(f"[📥 Download / View Document]({url})")
+                            else:
+                                st.info("No link attached.")
                 else:
                     st.info("No materials found for the selected category/subject.")
             except Exception as e:
