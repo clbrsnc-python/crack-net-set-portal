@@ -16,21 +16,30 @@ st.set_page_config(
 # (Centralized subject list used across the entire portal)
 # ==========================================
 SUBJECT_LIST = [
-    "Paper 1 (General Paper)",
-    "Computer Science & Applications",
-    "Commerce",
-    "Economics",
-    "English",
-    "History",
-    "Management",
-    "Political Science",
-    "Sociology",
-    "Mathematical Sciences",
-    "Physical Sciences",
+    "Bengali",
     "Chemical Sciences",
+    "Commerce",
+    "Computer Science & Applications",
+    "Earth, Atmospheric, Ocean & Planetary Sciences",
+    "Economics",
+    "Education",
+    "Electronic Science",
+    "English",
+    "General Paper",
+    "Geography",
+    "Hindi",
+    "History",
+    "Home Science",
+    "Law",
+    "Library & Information Science",
     "Life Sciences",
-    "Environmental Sciences",
-    "Library & Information Science"
+    "Mass Communication & Journalism",
+    "Mathematical Sciences",
+    "Philosophy",
+    "Physical Sciences",
+    "Political Science",
+    "Psychology",
+    "Management",
 ]
 
 # ==========================================
@@ -226,7 +235,7 @@ else:
         with admin_tab1:
             st.markdown("### 📚 Upload Resources, Notes & External Links")
             
-            # 💡 Resource type radio placed OUTSIDE st.form so dynamic rerun works instantly!
+            # Dynamic radio selector OUTSIDE st.form for instant re-render
             resource_type = st.radio(
                 "Select Resource Type",
                 ["📄 File Upload (PDF, TXT, DOCX)", "🔗 External Link (YouTube, Drive, Web Link)"],
@@ -235,9 +244,7 @@ else:
             
             with st.form("content_upload_form", clear_on_submit=True):
                 title = st.text_input("Resource / Link Title", placeholder="e.g. Paper 1 Unit 1 Complete Notes / Video Lecture")
-                
                 subject = st.selectbox("Select Subject", SUBJECT_LIST)
-                
                 category = st.selectbox(
                     "Select Resource Category",
                     ["Syllabus", "Learning Resources", "PYQs", "Video Lectures", "Useful Links"]
@@ -246,7 +253,6 @@ else:
                 uploaded_file = None
                 link_input = ""
                 
-                # Show file uploader or text input based on dynamic choice
                 if "File Upload" in resource_type:
                     uploaded_file = st.file_uploader("Upload Document File", type=["pdf", "txt", "docx"])
                 else:
@@ -269,13 +275,12 @@ else:
                             if "File Upload" in resource_type and uploaded_file:
                                 file_bytes = uploaded_file.read()
                                 file_path = f"{category}/{uploaded_file.name}"
-                                
-                                db.storage.from_("materials").upload(
+                                db.storage.from_("net-set-materials").upload(
                                     file_path, 
                                     file_bytes, 
                                     file_options={"content-type": uploaded_file.type, "upsert": "true"}
                                 )
-                                final_url = db.storage.from_("materials").get_public_url(file_path)
+                                final_url = db.storage.from_("net-set-materials").get_public_url(file_path)
                             else:
                                 final_url = link_input.strip()
                             
@@ -285,7 +290,6 @@ else:
                                 "category": category,
                                 "file_url": final_url
                             }
-                            
                             db.table("content").insert(content_data).execute()
                             st.success(f"✅ Successfully published **'{title}'** under **{category}** ({subject})!")
                         except Exception as e:
@@ -328,7 +332,6 @@ else:
                 users_res = db.table("users").select("id, name, email, subject, role").execute()
                 if users_res.data:
                     st.dataframe(users_res.data, use_container_width=True)
-                    
                     st.markdown("#### Promote/Change User Role")
                     col1, col2 = st.columns([2, 1])
                     with col1:
