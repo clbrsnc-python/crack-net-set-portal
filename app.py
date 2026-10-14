@@ -6,15 +6,28 @@ from supabase import create_client, Client
 # PAGE CONFIGURATION
 # ==========================================
 st.set_page_config(
-    page_title="Crack NET/SET Portal",
+    page_title="Crack NET/SET",
     page_icon="📚",
     layout="wide"
 )
 
 # ==========================================
-# MASTER SUBJECT LIST
-# (Centralized subject list used across the entire portal)
+# SUPABASE CONNECTION SETUP
 # ==========================================
+@st.cache_resource
+def get_supabase_client() -> Client:
+    """Initialize and cache the Supabase client using Streamlit secrets."""
+    try:
+        url = st.secrets["supabase"]["url"]
+        key = st.secrets["supabase"]["key"]
+        return create_client(url, key)
+    except Exception as e:
+        st.error("⚠️ Failed to connect to Supabase. Please ensure Secrets are configured correctly.")
+        st.stop()
+
+db = get_supabase_client()
+
+# Centralized Subject List
 SUBJECT_LIST = [
     "Paper 1 (General Paper)",
     "Bengali",
@@ -42,21 +55,6 @@ SUBJECT_LIST = [
     "Psychology"
 ]
 
-# ==========================================
-# SUPABASE CONNECTION SETUP
-# ==========================================
-@st.cache_resource
-def get_supabase_client() -> Client:
-    """Initialize and cache the Supabase client using Streamlit secrets."""
-    try:
-        url = st.secrets["supabase"]["url"]
-        key = st.secrets["supabase"]["key"]
-        return create_client(url, key)
-    except Exception as e:
-        st.error("⚠️ Failed to connect to Supabase. Please ensure Secrets are configured correctly.")
-        st.stop()
-
-db = get_supabase_client()
 
 # ==========================================
 # HELPER FUNCTIONS
@@ -87,7 +85,7 @@ if "role" not in st.session_state:
 # AUTHENTICATION PORTAL (LOGIN / REGISTER / RESET)
 # ==========================================
 def render_auth_page():
-    st.title("📚 Crack NET/SET Learning & Exam Portal")
+    st.title("📚 Crack NET/SET")
     st.markdown("---")
     
     auth_tab1, auth_tab2, auth_tab3 = st.tabs(["🔒 Login", "📝 New Registration", "🔑 Forgot Password"])
@@ -133,7 +131,10 @@ def render_auth_page():
         with st.form("register_form", clear_on_submit=True):
             reg_name = st.text_input("Full Name")
             reg_email = st.text_input("Email Address").strip().lower()
-            reg_subject = st.selectbox("Target Subject", SUBJECT_LIST)
+            reg_subject = st.selectbox(
+                "Target Subject", 
+                SUBJECT_LIST
+            )
             reg_pass = st.text_input("Password", type="password")
             reg_question = st.selectbox(
                 "Security Question",
@@ -152,6 +153,7 @@ def render_auth_page():
                 st.warning("Please fill in all required fields.")
             else:
                 try:
+                    # Check existing user
                     existing = db.table("users").select("email").eq("email", reg_email).execute()
                     if existing.data and len(existing.data) > 0:
                         st.error("An account with this email already exists.")
@@ -163,7 +165,7 @@ def render_auth_page():
                             "password": hash_text(reg_pass),
                             "secret_question": reg_question,
                             "secret_answer": hash_text(reg_answer),
-                            "role": "student"
+                            "role": "student"  # Default role
                         }
                         db.table("users").insert(new_user).execute()
                         st.success("✅ Registration successful! Please switch to the Login tab to sign in.")
@@ -227,73 +229,69 @@ else:
     # ------------------------------------------
     if st.session_state.role == "admin":
         st.title("⚙️ Admin Control Panel")
-        admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📚 Content & Link Uploads", "📥 Question Importer", "👥 User Management"])
+        admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📚 Content Uploads", "📥 Question Importer", "👥 User Management"])
 
         # ======================================
-        # ADMIN TAB 1: CONTENT & LINK UPLOADS
+        # ADMIN TAB 1: CONTENT UPLOADS
         # ======================================
         with admin_tab1:
-            st.markdown("### 📚 Upload Resources, Notes & External Links")
-            
-            # Dynamic radio selector OUTSIDE st.form for instant re-render
-            resource_type = st.radio(
-                "Select Resource Type",
-                ["📄 File Upload (PDF, TXT, DOCX)", "🔗 External Link (YouTube, Drive, Web Link)"],
-                horizontal=True
-            )
+            st.markdown("### 📚 Upload Content & Study Resources")
             
             with st.form("content_upload_form", clear_on_submit=True):
-                title = st.text_input("Resource / Link Title", placeholder="e.g. Paper 1 Unit 1 Complete Notes / Video Lecture")
-                subject = st.selectbox("Select Subject", SUBJECT_LIST)
-                category = st.selectbox(
-                    "Select Resource Category",
-                    ["Syllabus", "Learning Resources", "PYQs", "Video Lectures", "Useful Links"]
+                title = st.text_input("Resource Title", placeholder="e.g. Paper 1 Unit 1 Syllabus")
+                
+                subject = st.selectbox(
+                    "Select Subject", 
+                    SUBJECT_LIST
                 )
                 
-                uploaded_file = None
-                link_input = ""
+                # 3 Main Resource Categories
+                category = st.selectbox(
+                    "Select Resource Category",
+                    ["Syllabus", "Learning Resources", "PYQs"]
+                )
                 
-                if "File Upload" in resource_type:
-                    uploaded_file = st.file_uploader("Upload Document File", type=["pdf", "txt", "docx"])
-                else:
-                    link_input = st.text_input("Paste Link (YouTube URL, Google Drive, Website Link)", placeholder="https://...")
+                uploaded_file = st.file_uploader(
+                    "Upload File (PDF, TXT, DOCX)", 
+                    type=["pdf", "txt", "docx"]
+                )
                 
-                submit_btn = st.form_submit_button("🚀 Save & Publish Resource")
+                submit_btn = st.form_submit_button("🚀 Upload Resource")
 
             if submit_btn:
                 if not title.strip():
                     st.warning("Please enter a title for the resource.")
-                elif "File Upload" in resource_type and not uploaded_file:
+                elif not uploaded_file:
                     st.warning("Please select a file to upload.")
-                elif "External Link" in resource_type and not link_input.strip():
-                    st.warning("Please enter a valid URL / link.")
                 else:
-                    with st.spinner("Publishing resource..."):
+                    with st.spinner("Uploading file and updating database..."):
                         try:
-                            final_url = ""
+                            # 1. Read file bytes
+                            file_bytes = uploaded_file.read()
+                            file_path = f"{category}/{uploaded_file.name}"
                             
-                            if "File Upload" in resource_type and uploaded_file:
-                                file_bytes = uploaded_file.read()
-                                file_path = f"{category}/{uploaded_file.name}"
-                                db.storage.from_("net-set-materials").upload(
-                                    file_path, 
-                                    file_bytes, 
-                                    file_options={"content-type": uploaded_file.type, "upsert": "true"}
-                                )
-                                final_url = db.storage.from_("net-set-materials").get_public_url(file_path)
-                            else:
-                                final_url = link_input.strip()
+                            # 2. Upload to Supabase Storage bucket ('materials')
+                            db.storage.from_("net-set-materials").upload(
+                                file_path, 
+                                file_bytes, 
+                                file_options={"content-type": uploaded_file.type, "upsert": "true"}
+                            )
                             
+                            # 3. Get Public URL from Storage
+                            file_url = db.storage.from_("net-set-materials").get_public_url(file_path)
+                            
+                            # 4. Insert Metadata into Supabase 'content' table
                             content_data = {
                                 "title": title.strip(),
                                 "subject": subject,
-                                "category": category,
-                                "file_url": final_url
+                                "category": category,  # 'Syllabus', 'Learning Resources', or 'PYQs'
+                                "file_url": file_url
                             }
+                            
                             db.table("content").insert(content_data).execute()
-                            st.success(f"✅ Successfully published **'{title}'** under **{category}** ({subject})!")
+                            st.success(f"✅ Successfully uploaded **'{title}'** under **{category}** ({subject})!")
                         except Exception as e:
-                            st.error(f"❌ Failed to publish: {e}")
+                            st.error(f"❌ Upload failed: {e}")
 
         # ======================================
         # ADMIN TAB 2: QUESTION IMPORTER
@@ -332,8 +330,9 @@ else:
                 users_res = db.table("users").select("id, name, email, subject, role").execute()
                 if users_res.data:
                     st.dataframe(users_res.data, use_container_width=True)
+                    
                     st.markdown("#### Promote/Change User Role")
-                    col1, col2 = st.columns(2)
+                    col1, col2 = st.columns([2, 1])
                     with col1:
                         target_email = st.selectbox("Select User Email", [u["email"] for u in users_res.data])
                     with col2:
@@ -352,126 +351,55 @@ else:
     # STUDENT LEARNING & QUIZ PORTAL
     # ------------------------------------------
     else:
-        st.title("🎓 Student Learning Portal")
-        student_tab1, student_tab2 = st.tabs(["📚 Study Resources & Links", "📝 Practice Quizzes"])
+        st.title("🎓 Crack NET/SET")
+        student_tab1, student_tab2 = st.tabs(["📚 Study Resources", "📝 Practice set"])
 
         # ======================================
-        # STUDENT TAB 1: STUDY RESOURCES & LINKS
+        # STUDENT TAB 1: STUDY RESOURCES
         # ======================================
         with student_tab1:
-            st.subheader("📚 Study Resources & Course Materials")
+            st.subheader("📚 Study Resources")
             
-            # Automatically detect student's registered subject
-            user_subject = st.session_state.user.get("subject", "Paper 1 (General Paper)")
-            
-            # Auto-filtering info banner
-            st.info(f"🎯 **Targeted Learning Stream:** Automatically displaying study materials for your declared subject: **{user_subject}** (including General Paper 1 materials).")
+            filter_col1, filter_col2 = st.columns(2)
+            with filter_col1:
+                cat_filter = st.selectbox("Filter by Category", ["All Categories", "Syllabus", "Learning Resources", "PYQs"])
+            with filter_col2:
+                subj_filter = st.selectbox("Filter by Subject", ["All Subjects", "Paper 1", "Computer Science", "Commerce", "History"])
             
             try:
-                # Fetch all published content
-                res = db.table("content").select("*").execute()
-                all_items = res.data if res.data else []
-                
-                # Auto-filter items for student's declared subject OR General Paper 1
-                relevant_items = [
-                    item for item in all_items 
-                    if item.get("subject") == user_subject or "Paper 1" in str(item.get("subject")) or "General" in str(item.get("subject"))
-                ]
-                
-                # Organize items into 5 Flashcard Categories
-                categories = {
-                    "📋 Syllabus": [i for i in relevant_items if i.get("category") == "Syllabus"],
-                    "📖 Learning Resources": [i for i in relevant_items if i.get("category") == "Learning Resources"],
-                    "📝 PYQs": [i for i in relevant_items if i.get("category") == "PYQs"],
-                    "🎬 Video Lectures": [i for i in relevant_items if i.get("category") == "Video Lectures"],
-                    "🔗 Useful Links": [i for i in relevant_items if i.get("category") == "Useful Links"]
-                }
-                
-                st.markdown("#### 🎴 Resource Category Flashcards")
-                st.caption("Click on any category card tab below to explore available materials, video lectures, and download links:")
-                
-                # 5 Visual Flashcard Summary Metric Cards
-                card_cols = st.columns(5)
-                cat_keys = list(categories.keys())
-                
-                for idx, cat_name in enumerate(cat_keys):
-                    count = len(categories[cat_name])
-                    item_label = f"{count} Item" if count == 1 else f"{count} Items"
-                    with card_cols[idx]:
-                        st.metric(label=cat_name, value=item_label)
-
-                st.markdown("---")
-
-                # Interactive Category Flashcard Tabs
-                cat_tabs = st.tabs([
-                    f"{cat} ({len(items)})" for cat, items in categories.items()
-                ] + [f"📁 View All Items ({len(relevant_items)})"])
-
-                def render_item_card(item):
-                    title = item.get("title", "Untitled Resource")
-                    cat = item.get("category", "General")
-                    subj = item.get("subject", "General")
-                    url = item.get("file_url", "")
+                query = db.table("content").select("*")
+                if cat_filter != "All Categories":
+                    query = query.eq("category", cat_filter)
+                if subj_filter != "All Subjects":
+                    query = query.eq("subject", subj_filter)
                     
-                    with st.expander(f"📌 {title} | {subj}"):
-                        st.write(f"**Subject:** {subj}")
-                        st.write(f"**Category:** {cat}")
-                        
-                        if url:
-                            if "youtube.com" in url or "youtu.be" in url or cat == "Video Lectures":
-                                st.markdown("#### 🎬 Embedded Video Lecture")
-                                st.video(url)
-                            else:
-                                st.markdown(f"[🔗 Access / Download Resource]({url})")
-                        else:
-                            st.info("No link or file attached.")
-
-                # Render items under each category flashcard tab
-                for idx, (cat_name, items) in enumerate(categories.items()):
-                    with cat_tabs[idx]:
-                        if items:
-                            for item in items:
-                                render_item_card(item)
-                        else:
-                            st.info(f"No {cat_name} published yet for **{user_subject}**.")
-
-                # Render View All tab
-                with cat_tabs[-1]:
-                    if relevant_items:
-                        for item in relevant_items:
-                            render_item_card(item)
-                    else:
-                        st.info(f"No study materials available yet for **{user_subject}**.")
-
+                res = query.execute()
+                
+                if res.data and len(res.data) > 0:
+                    for item in res.data:
+                        with st.expander(f"📄 {item.get('title', 'Untitled')} ({item.get('category', 'General')})"):
+                            st.write(f"**Subject:** {item.get('subject', 'General')}")
+                            st.write(f"**Category:** {item.get('category', 'N/A')}")
+                            if item.get("file_url"):
+                                st.markdown(f"[📥 Download Resource]({item.get('file_url')})")
+                else:
+                    st.info("No materials found for the selected category/subject.")
             except Exception as e:
-                st.error(f"Error loading study resources: {e}")
+                st.error(f"Error fetching study resources: {e}")
 
         # ======================================
         # STUDENT TAB 2: PRACTICE QUIZZES
         # ======================================
         with student_tab2:
-            st.subheader("📝 Practice Questions & MCQs")
-            user_subject = st.session_state.user.get("subject", "Paper 1 (General Paper)")
-            st.info(f"🎯 Displaying practice questions for: **{user_subject}**")
-            
+            st.subheader("📝 Practice set")
             try:
                 q_res = db.table("questions").select("*").execute()
-                all_q = q_res.data if q_res.data else []
-                
-                filtered_q = [
-                    q for q in all_q 
-                    if q.get("subject") == user_subject or "Paper 1" in str(q.get("subject"))
-                ]
-                
-                if filtered_q:
-                    for idx, q in enumerate(filtered_q, 1):
-                        q_txt = q.get("question_text", "")
-                        st.markdown(f"**Q{idx}:** {q_txt}")
-                        q_subj = q.get("subject", "")
-                        q_top = q.get("topic", "General")
-                        st.caption(f"Subject: {q_subj} | Topic: {q_top}")
+                if q_res.data and len(q_res.data) > 0:
+                    for idx, q in enumerate(q_res.data, 1):
+                        st.markdown(f"**Q{idx}:** {q.get('question_text', '')}")
+                        st.caption(f"Subject: {q.get('subject', '')} | Topic: {q.get('topic', '')}")
                         st.markdown("---")
                 else:
-                    st.info(f"No practice questions uploaded yet for **{user_subject}**.")
+                    st.info("No practice questions available yet.")
             except Exception as e:
                 st.error(f"Error loading practice questions: {e}")
