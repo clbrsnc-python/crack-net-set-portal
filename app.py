@@ -1,8 +1,9 @@
 import streamlit as st
 import hashlib
-import random
 import time
-from datetime import datetime
+import random
+import csv
+import io
 from supabase import create_client, Client
 
 # ==========================================
@@ -44,7 +45,7 @@ SUBJECT_LIST = [
     "Psychology"
 ]
 
-UNITS_LIST = [f"Unit {i}" for i in range(1, 11)]
+UNIT_LIST = [f"Unit {i}" for i in range(1, 11)]
 
 # ==========================================
 # SUPABASE CONNECTION SETUP
@@ -78,9 +79,10 @@ def verify_credential(input_text: str, stored_val: str) -> bool:
     return clean_stored == clean_input or clean_stored == hash_text(clean_input)
 
 def render_footer():
+    """Renders mandatory copyright & attribution footer across all pages."""
     st.markdown("---")
     st.markdown(
-        "<div style='text-align: center; padding: 10px; color: #666; font-size: 0.9em;'>"
+        "<div style='text-align: center; color: #666; padding: 10px; font-size: 0.9em;'>"
         "<strong>Curated by Dr. Joydip Chandra, BRSC</strong><br>"
         "Copyright 2026 All rights reserved"
         "</div>",
@@ -96,8 +98,26 @@ if "user" not in st.session_state:
     st.session_state.user = None
 if "role" not in st.session_state:
     st.session_state.role = None
-if "exam_state" not in st.session_state:
-    st.session_state.exam_state = None
+
+# Practice Test Engine Session States
+if "test_active" not in st.session_state:
+    st.session_state.test_active = False
+if "test_questions" not in st.session_state:
+    st.session_state.test_questions = []
+if "user_answers" not in st.session_state:
+    st.session_state.user_answers = {}
+if "current_q_idx" not in st.session_state:
+    st.session_state.current_q_idx = 0
+if "start_time" not in st.session_state:
+    st.session_state.start_time = 0
+if "time_limit" not in st.session_state:
+    st.session_state.time_limit = 0
+if "test_module" not in st.session_state:
+    st.session_state.test_module = ""
+if "test_completed" not in st.session_state:
+    st.session_state.test_completed = False
+if "last_score" not in st.session_state:
+    st.session_state.last_score = {}
 
 # ==========================================
 # AUTHENTICATION PORTAL (LOGIN / REGISTER / RESET)
@@ -219,7 +239,7 @@ def render_auth_page():
                     st.warning("Email address not found.")
             except Exception as e:
                 st.error(f"Error fetching user details: {e}")
-                
+
     render_footer()
 
 # ==========================================
@@ -228,7 +248,7 @@ def render_auth_page():
 if not st.session_state.logged_in:
     render_auth_page()
 else:
-    # Sidebar
+    # Sidebar Navigation & Attribution
     st.sidebar.title(f"👋 Welcome, {st.session_state.user.get('name', 'User')}")
     st.sidebar.write(f"**Role:** {st.session_state.role.upper()}")
     st.sidebar.write(f"**Subject:** {st.session_state.user.get('subject', 'N/A')}")
@@ -238,11 +258,14 @@ else:
         st.session_state.logged_in = False
         st.session_state.user = None
         st.session_state.role = None
-        st.session_state.exam_state = None
+        st.session_state.test_active = False
         st.rerun()
 
     st.sidebar.markdown("---")
-    st.sidebar.info("**Curated by Dr. Joydip Chandra, BRSC**\n\nCopyright 2026 All rights reserved")
+    st.sidebar.info(
+        "**Curated by Dr. Joydip Chandra, BRSC**\n\n"
+        "Copyright 2026 All rights reserved"
+    )
 
     # ------------------------------------------
     # ADMIN CONTROL PANEL
@@ -297,7 +320,6 @@ else:
                     with st.spinner("Publishing resource..."):
                         try:
                             final_url = ""
-                            
                             if "File Upload" in resource_type and uploaded_file:
                                 file_bytes = uploaded_file.read()
                                 file_path = f"{category}/{uploaded_file.name}"
@@ -326,87 +348,103 @@ else:
         # ======================================
         with admin_tab2:
             st.markdown("### 📥 Question Importer")
-            st.info("Add questions individually or in bulk block format.")
+            import_mode = st.radio("Select Import Mode", ["Single Question Entry", "Bulk CSV / Text Importer"], horizontal=True)
             
-            import_mode = st.radio(
-                "Select Import Mode",
-                ["📝 Single Question Entry", "📦 Bulk MCQ Block Entry"],
-                horizontal=True
-            )
-            
-            if "Single Question" in import_mode:
+            if import_mode == "Single Question Entry":
                 with st.form("single_q_form", clear_on_submit=True):
+                    sq_subject = st.selectbox("Subject", SUBJECT_LIST)
+                    sq_unit = st.selectbox("Unit / Topic", UNIT_LIST)
+                    sq_text = st.text_area("Question Text", placeholder="Enter full question text...")
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        s_subject = st.selectbox("Subject", SUBJECT_LIST)
-                    with col_b:
-                        s_unit = st.selectbox("Unit / Topic", UNITS_LIST)
-                        
-                    s_question = st.text_area("Question Text", placeholder="Enter the full question prompt here...")
-                    
-                    c1, c2 = st.columns(2)
-                    with c1:
                         opt_a = st.text_input("Option A")
                         opt_b = st.text_input("Option B")
-                    with c2:
+                    with col_b:
                         opt_c = st.text_input("Option C")
                         opt_d = st.text_input("Option D")
-                        
-                    col_ans, col_exp = st.columns([1, 2])
-                    with col_ans:
-                        correct_opt = st.selectbox("Correct Option", ["A", "B", "C", "D"])
-                    with col_exp:
-                        explanation_text = st.text_input("Explanation / Solution Notes (Optional)")
-                        
-                    add_single_btn = st.form_submit_button("➕ Add Question to Database")
                     
-                if add_single_btn:
-                    if not s_question.strip() or not opt_a.strip() or not opt_b.strip() or not opt_c.strip() or not opt_d.strip():
-                        st.warning("Please fill in question text and all four options.")
+                    correct_opt = st.selectbox("Correct Option Key", ["A", "B", "C", "D"])
+                    explanation_txt = st.text_area("Explanation / Solution Notes (Optional)", placeholder="Optional solution breakdown...")
+                    sq_submit = st.form_submit_button("➕ Add Question to Database")
+                    
+                if sq_submit:
+                    if not sq_text.strip() or not opt_a.strip() or not opt_b.strip():
+                        st.warning("Please provide question text and at least Options A and B.")
                     else:
                         try:
-                            q_data = {
-                                "subject": s_subject,
-                                "topic": s_unit,
-                                "question_text": s_question.strip(),
+                            q_row = {
+                                "subject": sq_subject,
+                                "unit": sq_unit,
+                                "question_text": sq_text.strip(),
                                 "option_a": opt_a.strip(),
                                 "option_b": opt_b.strip(),
                                 "option_c": opt_c.strip(),
                                 "option_d": opt_d.strip(),
                                 "correct_option": correct_opt,
-                                "explanation": explanation_text.strip()
+                                "explanation": explanation_txt.strip() if explanation_txt else ""
                             }
-                            db.table("questions").insert(q_data).execute()
-                            st.success(f"✅ Successfully added Question to **{s_subject}** ({s_unit})!")
+                            db.table("questions").insert(q_row).execute()
+                            st.success("✅ Question added successfully to database!")
                         except Exception as e:
                             st.error(f"Failed to add question: {e}")
-
+                            
             else:
+                st.info("Paste CSV text below with columns: `subject,unit,question_text,option_a,option_b,option_c,option_d,correct_option,explanation`")
                 with st.form("bulk_q_form", clear_on_submit=True):
-                    col_b1, col_b2 = st.columns(2)
-                    with col_b1:
-                        b_subject = st.selectbox("Target Subject", SUBJECT_LIST)
-                    with col_b2:
-                        b_unit = st.selectbox("Target Unit", UNITS_LIST)
-                        
-                    st.caption("Paste question blocks. Format example:\nQuestion text...\n(A) Option 1\n(B) Option 2\n(C) Option 3\n(D) Option 4\nAnswer: A\nExplanation: Solution notes...")
-                    b_text = st.text_area("Paste MCQ Block", height=250)
-                    bulk_btn = st.form_submit_button("🚀 Import Questions")
+                    default_subject = st.selectbox("Default Subject (if not in CSV)", SUBJECT_LIST)
+                    default_unit = st.selectbox("Default Unit (if not in CSV)", UNIT_LIST)
+                    bulk_csv = st.text_area("Paste CSV Data Block", height=220)
+                    bulk_submit = st.form_submit_button("🚀 Import Bulk Questions")
                     
-                if bulk_btn:
-                    if b_text.strip():
+                if bulk_submit:
+                    if bulk_csv.strip():
                         try:
-                            q_data = {
-                                "subject": b_subject,
-                                "topic": b_unit,
-                                "question_text": b_text.strip()
-                            }
-                            db.table("questions").insert(q_data).execute()
-                            st.success(f"✅ Imported question block under **{b_subject}** ({b_unit})!")
+                            f = io.StringIO(bulk_csv.strip())
+                            reader = csv.DictReader(f)
+                            records = []
+                            for row in reader:
+                                r_lower = {k.strip().lower(): v for k, v in row.items() if k}
+                                
+                                q_txt = r_lower.get("question_text") or r_lower.get("question") or r_lower.get("q_text") or ""
+                                op_a = r_lower.get("option_a") or r_lower.get("option a") or r_lower.get("a") or ""
+                                op_b = r_lower.get("option_b") or r_lower.get("option b") or r_lower.get("b") or ""
+                                op_c = r_lower.get("option_c") or r_lower.get("option c") or r_lower.get("c") or ""
+                                op_d = r_lower.get("option_d") or r_lower.get("option d") or r_lower.get("d") or ""
+                                
+                                key_raw = r_lower.get("correct_option") or r_lower.get("correct answer") or r_lower.get("answer") or "A"
+                                key_clean = str(key_raw).strip().upper()
+                                if "A" in key_clean: key_clean = "A"
+                                elif "B" in key_clean: key_clean = "B"
+                                elif "C" in key_clean: key_clean = "C"
+                                elif "D" in key_clean: key_clean = "D"
+                                else: key_clean = "A"
+                                
+                                subj = r_lower.get("subject") or default_subject
+                                u_val = r_lower.get("unit") or r_lower.get("topic") or default_unit
+                                exp_val = r_lower.get("explanation") or r_lower.get("solution") or ""
+                                
+                                if q_txt:
+                                    records.append({
+                                        "subject": subj,
+                                        "unit": u_val,
+                                        "question_text": q_txt,
+                                        "option_a": op_a,
+                                        "option_b": op_b,
+                                        "option_c": op_c,
+                                        "option_d": op_d,
+                                        "correct_option": key_clean,
+                                        "explanation": exp_val
+                                    })
+                            
+                            if records:
+                                db.table("questions").insert(records).execute()
+                                st.success(f"✅ Successfully imported {len(records)} questions into database!")
+                            else:
+                                st.warning("No valid questions parsed from the pasted CSV.")
                         except Exception as e:
-                            st.error(f"Failed to import questions: {e}")
+                            st.error(f"Failed to process CSV block: {e}")
                     else:
-                        st.warning("Please paste question text.")
+                        st.warning("Please paste CSV data.")
 
         # ======================================
         # ADMIN TAB 3: USER MANAGEMENT
@@ -437,15 +475,18 @@ else:
         # ADMIN TAB 4: STUDENT PERFORMANCE MONITOR
         # ======================================
         with admin_tab4:
-            st.markdown("### 📊 Student Test Performance & Attempts")
+            st.markdown("### 📊 Student Performance & Test Attempt Monitor")
             try:
                 attempts_res = db.table("quiz_attempts").select("*").order("attempted_at", desc=True).execute()
-                if attempts_res.data:
-                    st.dataframe(attempts_res.data, use_container_width=True)
+                attempts_data = attempts_res.data if attempts_res.data else []
+                if attempts_data:
+                    st.dataframe(attempts_data, use_container_width=True)
                 else:
-                    st.info("No student test attempts recorded yet.")
+                    st.info("No test attempts recorded in database yet.")
             except Exception as e:
-                st.info("Performance table (`quiz_attempts`) will display here once student attempts are recorded.")
+                st.error(f"Error fetching test attempt records: {e}")
+
+        render_footer()
 
     # ------------------------------------------
     # STUDENT LEARNING & QUIZ PORTAL
@@ -541,209 +582,262 @@ else:
             st.subheader("📝 Practice set")
             user_subject = st.session_state.user.get("subject", "Paper 1 (General Paper)")
             
-            selected_module = st.selectbox(
-                "Select Unit / Exam Module",
-                UNITS_LIST + ["Full Paper (100 Questions)"]
-            )
-            
-            if st.button("🚀 Start Practice Test"):
-                try:
-                    q_res = db.table("questions").select("*").execute()
-                    all_q = q_res.data if q_res.data else []
-                    
-                    # Filter questions for student's subject or Paper 1
-                    subj_q = [
-                        q for q in all_q 
-                        if q.get("subject") == user_subject or "Paper 1" in str(q.get("subject"))
-                    ]
-                    
-                    selected_questions = []
-                    duration_sec = 1800 # default 30 mins
-                    
-                    if "Full Paper" in selected_module:
-                        duration_sec = 7200 # 120 mins
-                        # 10 questions per unit
-                        for u_name in UNITS_LIST:
-                            unit_pool = [q for q in subj_q if q.get("topic") == u_name]
-                            if len(unit_pool) >= 10:
-                                selected_questions.extend(random.sample(unit_pool, 10))
-                            else:
-                                selected_questions.extend(unit_pool)
-                        random.shuffle(selected_questions)
-                    else:
-                        duration_sec = 1800 # 30 mins for 25 questions
-                        unit_pool = [q for q in subj_q if q.get("topic") == selected_module]
-                        if len(unit_pool) >= 25:
-                            selected_questions = random.sample(unit_pool, 25)
-                        else:
-                            selected_questions = unit_pool
+            if not st.session_state.test_active and not st.session_state.test_completed:
+                st.info(f"🎯 **Targeted Practice:** Select a Unit Test or Full Paper Mock Test for **{user_subject}**.")
+                
+                module_options = UNIT_LIST + ["Full Paper (100 Questions - 120 Mins)"]
+                selected_mod = st.selectbox("Select Test Module", module_options)
+                
+                if "Full Paper" in selected_mod:
+                    st.write("📋 **Test Rules:** 100 Questions (10 Questions drawn from each of the 10 Units). Time limit: **120 Minutes**. 2 Marks per question (Total: 200 Marks). No negative marking.")
+                else:
+                    st.write(f"📋 **Test Rules:** 25 Questions for **{selected_mod}**. Time limit: **30 Minutes**. 2 Marks per question (Total: 50 Marks). No negative marking.")
+                
+                if st.button("🚀 Start Practice Test", use_container_width=True):
+                    with st.spinner("Preparing question paper..."):
+                        try:
+                            q_res = db.table("questions").select("*").execute()
+                            all_qs = q_res.data if q_res.data else []
+                            subj_qs = [
+                                q for q in all_qs 
+                                if q.get("subject") == user_subject or "Paper 1" in str(q.get("subject"))
+                            ]
                             
-                    if selected_questions:
-                        st.session_state.exam_state = {
-                            "module": selected_module,
-                            "questions": selected_questions,
-                            "user_answers": {},
-                            "start_time": time.time(),
-                            "duration_sec": duration_sec,
-                            "current_idx": 0,
-                            "submitted": False
-                        }
-                        st.rerun()
-                    else:
-                        st.warning(f"No questions available in database for **{selected_module}** ({user_subject}).")
-                except Exception as e:
-                    st.error(f"Error starting test: {e}")
+                            selected_qs = []
+                            if "Full Paper" in selected_mod:
+                                for u_name in UNIT_LIST:
+                                    u_pool = [q for q in subj_qs if q.get("unit") == u_name or q.get("topic") == u_name]
+                                    if len(u_pool) >= 10:
+                                        selected_qs.extend(random.sample(u_pool, 10))
+                                    else:
+                                        selected_qs.extend(u_pool)
+                                random.shuffle(selected_qs)
+                                st.session_state.time_limit = 120 * 60
+                            else:
+                                u_pool = [q for q in subj_qs if q.get("unit") == selected_mod or q.get("topic") == selected_mod]
+                                if u_pool:
+                                    selected_qs = random.sample(u_pool, min(25, len(u_pool)))
+                                st.session_state.time_limit = 30 * 60
+                            
+                            if selected_qs:
+                                st.session_state.test_questions = selected_qs
+                                st.session_state.start_time = time.time()
+                                st.session_state.user_answers = {}
+                                st.session_state.current_q_idx = 0
+                                st.session_state.test_module = selected_mod
+                                st.session_state.test_active = True
+                                st.rerun()
+                            else:
+                                st.warning(f"No questions available in database for **{selected_mod}**.")
+                        except Exception as e:
+                            st.error(f"Error initializing test: {e}")
 
-            # Active Test Session Interface
-            if st.session_state.exam_state and not st.session_state.exam_state.get("submitted"):
-                exam = st.session_state.exam_state
-                q_list = exam["questions"]
-                curr_idx = exam["current_idx"]
-                total_q = len(q_list)
+            elif st.session_state.test_active:
+                elapsed = time.time() - st.session_state.start_time
+                remaining = max(0, int(st.session_state.time_limit - elapsed))
                 
-                # Countdown Timer
-                elapsed = int(time.time() - exam["start_time"])
-                remaining = exam["duration_sec"] - elapsed
-                
-                if remaining <= 0:
-                    st.session_state.exam_state["submitted"] = True
-                    st.rerun()
-                    
                 mins, secs = divmod(remaining, 60)
                 hrs, mins = divmod(mins, 60)
-                timer_str = f"{hrs:02d}:{mins:02d}:{secs:02d}"
+                time_str = f"{hrs:02d}:{mins:02d}:{secs:02d}"
                 
-                # Header row with timer
-                col_h1, col_h2 = st.columns([3, 1])
-                with col_h1:
-                    st.markdown(f"### ⏳ Test in Progress: {exam['module']}")
-                with col_h2:
-                    st.error(f"⏱️ **Time Left:** `{timer_str}`")
+                header_col, timer_col = st.columns([3, 1])
+                with header_col:
+                    st.markdown(f"### 📝 {st.session_state.test_module}")
+                with timer_col:
+                    st.metric("⏳ Time Remaining", time_str)
+                
+                if remaining <= 0:
+                    st.warning("⏱️ Time is up! Auto-submitting your test...")
+                    total_q = len(st.session_state.test_questions)
+                    correct_cnt = 0
+                    for idx, q in enumerate(st.session_state.test_questions):
+                        if st.session_state.user_answers.get(idx) == q.get("correct_option"):
+                            correct_cnt += 1
+                    score_val = correct_cnt * 2
+                    max_score = total_q * 2
+                    pct = (score_val / max_score * 100) if max_score > 0 else 0.0
                     
+                    try:
+                        db.table("quiz_attempts").insert({
+                            "student_email": st.session_state.user.get("email"),
+                            "subject": user_subject,
+                            "unit_name": st.session_state.test_module,
+                            "score": f"{score_val}/{max_score}",
+                            "total_questions": total_q,
+                            "percentage": round(pct, 2)
+                        }).execute()
+                    except Exception as e:
+                        pass
+                        
+                    st.session_state.last_score = {
+                        "score": score_val,
+                        "max_score": max_score,
+                        "pct": pct,
+                        "correct_cnt": correct_cnt,
+                        "total_q": total_q
+                    }
+                    st.session_state.test_active = False
+                    st.session_state.test_completed = True
+                    st.rerun()
+                
+                total_qs = len(st.session_state.test_questions)
+                curr_idx = st.session_state.current_q_idx
+                q_data = st.session_state.test_questions[curr_idx]
+                
                 st.markdown("---")
+                if "Full Paper" in st.session_state.test_module:
+                    st.markdown(f"#### Question {curr_idx + 1} of {total_qs}")
+                else:
+                    unit_label = q_data.get("unit") or q_data.get("topic") or st.session_state.test_module
+                    st.markdown(f"#### Question {curr_idx + 1} of {total_qs} (`{unit_label}`)")
                 
-                # Current Question Display
-                q = q_list[curr_idx]
-                is_full_paper = "Full Paper" in exam["module"]
+                st.write(f"**{q_data.get('question_text')}**")
                 
-                unit_label = "" if is_full_paper else f" [{q.get('topic', '')}]"
-                st.markdown(f"#### Question {curr_idx + 1} of {total_q}{unit_label}")
-                
-                q_text_disp = q.get("question_text", "")
-                st.write(q_text_disp)
-                
-                # Radio choices A, B, C, D
                 opts = {
-                    "A": q.get("option_a") or "Option A",
-                    "B": q.get("option_b") or "Option B",
-                    "C": q.get("option_c") or "Option C",
-                    "D": q.get("option_d") or "Option D"
+                    "A": q_data.get("option_a", ""),
+                    "B": q_data.get("option_b", ""),
+                    "C": q_data.get("option_c", ""),
+                    "D": q_data.get("option_d", "")
                 }
                 
-                curr_ans = exam["user_answers"].get(curr_idx, None)
-                opt_labels = [f"({k}) {v}" for k, v in opts.items()]
-                
-                selected_opt = st.radio(
-                    "Choose your answer:",
-                    opt_labels,
-                    index=list(opts.keys()).index(curr_ans) if curr_ans in opts else None,
+                curr_ans = st.session_state.user_answers.get(curr_idx, None)
+                sel_opt = st.radio(
+                    "Select Answer:",
+                    options=["A", "B", "C", "D"],
+                    format_func=lambda k: f"{k}) {opts[k]}",
+                    index=["A", "B", "C", "D"].index(curr_ans) if curr_ans in ["A", "B", "C", "D"] else 0,
                     key=f"q_radio_{curr_idx}"
                 )
                 
-                if selected_opt:
-                    chosen_key = selected_opt[1] # Extracts 'A', 'B', 'C', 'D'
-                    st.session_state.exam_state["user_answers"][curr_idx] = chosen_key
+                st.session_state.user_answers[curr_idx] = sel_opt
+                
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    if st.button("⬅️ Previous", disabled=(curr_idx == 0)):
+                        st.session_state.current_q_idx -= 1
+                        st.rerun()
+                with c2:
+                    if st.button("⏭️ Skip"):
+                        if curr_idx < total_qs - 1:
+                            st.session_state.current_q_idx += 1
+                            st.rerun()
+                with c3:
+                    if st.button("💾 Save & Next", disabled=(curr_idx == total_qs - 1)):
+                        st.session_state.current_q_idx += 1
+                        st.rerun()
+                with c4:
+                    if st.button("🏁 Submit Test", type="primary"):
+                        total_q = len(st.session_state.test_questions)
+                        correct_cnt = 0
+                        for idx, q in enumerate(st.session_state.test_questions):
+                            if st.session_state.user_answers.get(idx) == q.get("correct_option"):
+                                correct_cnt += 1
+                        score_val = correct_cnt * 2
+                        max_score = total_q * 2
+                        pct = (score_val / max_score * 100) if max_score > 0 else 0.0
+                        
+                        try:
+                            db.table("quiz_attempts").insert({
+                                "student_email": st.session_state.user.get("email"),
+                                "subject": user_subject,
+                                "unit_name": st.session_state.test_module,
+                                "score": f"{score_val}/{max_score}",
+                                "total_questions": total_q,
+                                "percentage": round(pct, 2)
+                            }).execute()
+                        except Exception as e:
+                            st.error(f"Error logging result: {e}")
+                            
+                        st.session_state.last_score = {
+                            "score": score_val,
+                            "max_score": max_score,
+                            "pct": pct,
+                            "correct_cnt": correct_cnt,
+                            "total_q": total_q
+                        }
+                        st.session_state.test_active = False
+                        st.session_state.test_completed = True
+                        st.rerun()
 
                 st.markdown("---")
-                
-                # Navigation Controls
-                nav_col1, nav_col2, nav_col3, nav_col4 = st.columns(4)
-                with nav_col1:
-                    if st.button("⬅️ Previous") and curr_idx > 0:
-                        st.session_state.exam_state["current_idx"] -= 1
-                        st.rerun()
-                with nav_col2:
-                    if st.button("💾 Submit Answer & Next") and curr_idx < total_q - 1:
-                        st.session_state.exam_state["current_idx"] += 1
-                        st.rerun()
-                with nav_col3:
-                    if st.button("⏭️ Skip Question") and curr_idx < total_q - 1:
-                        st.session_state.exam_state["current_idx"] += 1
-                        st.rerun()
-                with nav_col4:
-                    if st.button("🏁 Finish & Submit Test"):
-                        st.session_state.exam_state["submitted"] = True
-                        st.rerun()
+                st.markdown("##### 🧭 Question Palette Navigation")
+                p_cols = st.columns(10)
+                for i in range(total_qs):
+                    is_ans = i in st.session_state.user_answers
+                    is_curr = i == curr_idx
+                    lbl = f"🔵{i+1}" if is_curr else (f"🟢{i+1}" if is_ans else f"⚪{i+1}")
+                    with p_cols[i % 10]:
+                        if st.button(lbl, key=f"p_btn_{i}"):
+                            st.session_state.current_q_idx = i
+                            st.rerun()
 
-            # Submitted Test Results View
-            elif st.session_state.exam_state and st.session_state.exam_state.get("submitted"):
-                exam = st.session_state.exam_state
-                q_list = exam["questions"]
-                user_ans = exam["user_answers"]
-                total_q = len(q_list)
+            elif st.session_state.test_completed:
+                res = st.session_state.last_score
+                st.success("🎉 Test Submitted Successfully!")
                 
-                correct_count = 0
-                for idx, q in enumerate(q_list):
-                    c_opt = q.get("correct_option", "").strip().upper()
-                    u_opt = user_ans.get(idx, "").strip().upper()
-                    if c_opt and u_opt == c_opt:
-                        correct_count += 1
-                        
-                score_marks = correct_count * 2
-                total_marks = total_q * 2
-                pct = round((correct_count / total_q) * 100, 2) if total_q > 0 else 0
+                m1, m2, m3 = st.columns(3)
+                with m1:
+                    st.metric("Total Score", f"{res.get('score')}/{res.get('max_score')}")
+                with m2:
+                    st.metric("Percentage", f"{res.get('pct'):.2f}%")
+                with m3:
+                    st.metric("Correct Answers", f"{res.get('correct_cnt')}/{res.get('total_q')}")
                 
-                st.success(f"🎉 **Test Completed! Score:** `{score_marks} / {total_marks}` Marks ({pct}%)")
+                st.markdown("---")
+                st.subheader("📖 Detailed Question Review & Answer Keys")
                 
-                # Log score to Supabase quiz_attempts
-                try:
-                    attempt_payload = {
-                        "student_email": st.session_state.user.get("email"),
-                        "subject": user_subject,
-                        "unit_name": exam["module"],
-                        "score": score_marks,
-                        "total_questions": total_marks,
-                        "percentage": pct,
-                        "attempted_at": datetime.utcnow().isoformat()
-                    }
-                    db.table("quiz_attempts").insert(attempt_payload).execute()
-                except Exception:
-                    pass
+                for idx, q in enumerate(st.session_state.test_questions, 1):
+                    user_ans = st.session_state.user_answers.get(idx - 1, "Unattempted")
+                    correct_key = q.get("correct_option")
+                    is_correct = user_ans == correct_key
+                    
+                    status_icon = "✅ Correct" if is_correct else ("❌ Incorrect" if user_ans != "Unattempted" else "⚪ Unattempted")
+                    with st.expander(f"Q{idx}: {q.get('question_text')} [{status_icon}]"):
+                        st.write(f"**A:** {q.get('option_a')}")
+                        st.write(f"**B:** {q.get('option_b')}")
+                        st.write(f"**C:** {q.get('option_c')}")
+                        st.write(f"**D:** {q.get('option_d')}")
+                        st.write(f"**Your Answer:** {user_ans}")
+                        st.write(f"**Correct Key:** {correct_key}")
+                        exp = q.get("explanation")
+                        if exp and str(exp).strip():
+                            st.info(f"💡 **Explanation / Notes:** {exp}")
 
-                if st.button("🔄 Take Another Practice Test"):
-                    st.session_state.exam_state = None
+                if st.button("🔄 Take Another Practice Test", type="primary"):
+                    st.session_state.test_completed = False
+                    st.session_state.test_questions = []
+                    st.session_state.user_answers = {}
                     st.rerun()
 
         # ======================================
         # STUDENT TAB 3: MY PERFORMANCE
         # ======================================
         with student_tab3:
-            st.subheader("📊 My Performance & Score History")
-            u_email = st.session_state.user.get("email")
+            st.subheader("📊 My Performance & Attempt History")
+            student_email = st.session_state.user.get("email")
             
             try:
-                p_res = db.table("quiz_attempts").select("*").eq("student_email", u_email).order("attempted_at", desc=True).execute()
-                attempts = p_res.data if p_res.data else []
+                att_res = db.table("quiz_attempts").select("*").eq("student_email", student_email).order("attempted_at", desc=True).execute()
+                attempts = att_res.data if att_res.data else []
                 
                 if attempts:
-                    t_count = len(attempts)
-                    avg_pct = round(sum(a.get("percentage", 0) for a in attempts) / t_count, 1)
-                    best_pct = max(a.get("percentage", 0) for a in attempts)
+                    total_tests = len(attempts)
+                    avg_pct = sum(float(a.get("percentage", 0)) for a in attempts) / total_tests
+                    best_pct = max(float(a.get("percentage", 0)) for a in attempts)
                     
-                    m1, m2, m3 = st.columns(3)
-                    with m1:
-                        st.metric("Total Tests Attempted", f"{t_count}")
-                    with m2:
-                        st.metric("Average Score", f"{avg_pct}%")
-                    with m3:
-                        st.metric("Best Score", f"{best_pct}%")
-                        
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        st.metric("Total Tests Attempted", total_tests)
+                    with c2:
+                        st.metric("Average Score %", f"{avg_pct:.1f}%")
+                    with c3:
+                        st.metric("Best Score %", f"{best_pct:.1f}%")
+                    
                     st.markdown("---")
-                    st.markdown("#### 📜 Attempt History Log")
                     st.dataframe(attempts, use_container_width=True)
                 else:
-                    st.info("No practice test attempts recorded yet. Take a practice test to view your performance history!")
+                    st.info("You haven't attempted any practice tests yet. Go to the **Practice set** tab to take your first test!")
             except Exception as e:
-                st.info("Your practice test results will be automatically logged here once you complete a test.")
+                st.error(f"Error loading performance history: {e}")
 
-    render_footer()
+        render_footer()
