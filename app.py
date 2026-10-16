@@ -4,6 +4,7 @@ import time
 import random
 import csv
 import io
+import re
 from supabase import create_client, Client
 
 # ==========================================
@@ -69,6 +70,25 @@ db = get_supabase_client()
 def hash_text(text: str) -> str:
     """Hashes string using SHA-256 for secure comparison."""
     return hashlib.sha256(text.strip().encode()).hexdigest()
+
+
+def matches_unit(q_obj, u_num_str):
+    u_val = str(q_obj.get('unit') or q_obj.get('topic') or '').strip().lower()
+    target = str(u_num_str).strip().lower()
+    
+    if u_val == target:
+        return True
+    
+    m_target = re.search(r'unit\s*(\d+)', target)
+    m_val = re.search(r'unit\s*(\d+)', u_val)
+    
+    if m_target and m_val:
+        try:
+            return int(m_target.group(1)) == int(m_val.group(1))
+        except ValueError:
+            pass
+        
+    return target in u_val
 
 def verify_credential(input_text: str, stored_val: str) -> bool:
     """Verifies input string against stored string (supports both plain text and SHA-256 hash)."""
