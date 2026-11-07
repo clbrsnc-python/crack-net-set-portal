@@ -1,10 +1,16 @@
 import streamlit as st
 import hashlib
+import re
+import random
+import time
+import csv
+import io
+import os
+from supabase import create_client, Client
 import time
 import random
 import csv
 import io
-from supabase import create_client, Client
 
 # ==========================================
 # PAGE CONFIGURATION
@@ -123,88 +129,152 @@ if "last_score" not in st.session_state:
 # AUTHENTICATION PORTAL (LOGIN / REGISTER / RESET)
 # ==========================================
 def render_auth_page():
-    # Inject Custom CSS for Landing Page GUI
-    st.markdown('''
-    <style>
-    /* Hero Banner Styling */
-    .hero-container {
-        background: linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%);
-        padding: 35px 25px;
-        border-radius: 16px;
-        color: #ffffff;
-        text-align: center;
-        margin-bottom: 25px;
-        box-shadow: 0 10px 25px rgba(30, 58, 138, 0.2);
-    }
-    .hero-title {
-        font-size: 2.3rem;
-        font-weight: 800;
-        margin-bottom: 8px;
-        color: #FFFFFF;
-        letter-spacing: -0.5px;
-    }
-    .hero-subtitle {
-        font-size: 1.1rem;
-        font-weight: 400;
-        color: #E0E7FF;
-        max-width: 850px;
-        margin: 0 auto 16px auto;
-        line-height: 1.5;
-    }
-    .hero-author {
-        font-size: 0.92rem;
-        font-weight: 500;
-        color: #93C5FD;
-        border-top: 1px solid rgba(255, 255, 255, 0.2);
-        padding-top: 12px;
-        margin-top: 14px;
-        display: inline-block;
-    }
-    .feature-badge {
-        background-color: rgba(255, 255, 255, 0.15);
-        color: #FFFFFF;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin: 4px;
-        display: inline-block;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
-        padding: 8px 16px;
-        font-weight: 600;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #1E3A8A !important;
-        color: #FFFFFF !important;
-    }
-    </style>
-    ''', unsafe_allow_html=True)
-
-    # Hero Banner Container (From Draft Login Page)
-    st.markdown('''
-    <div class="hero-container">
-        <div class="hero-title">📚 Crack NET/SET Portal</div>
-        <div class="hero-subtitle">Comprehensive online MCQ practice and mock test portal for UGC NET and SET</div>
-        <div>
-            <span class="feature-badge">🎯 Unit-wise Targeted Practice</span>
-            <span class="feature-badge">⏱️ 120-Min Full Paper Mocks</span>
-            <span class="feature-badge">📊 Instant Scoring & Detailed Solutions</span>
-        </div>
-        <div class="hero-author">
-            Designed & Crafted by: <strong>Dr Joydip Chandra</strong> | © 2026
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-    # Centered Card Layout for Authentication Forms
-    col_left, col_center, col_right = st.columns([1, 2.2, 1])
+    # Inject Custom CSS for 50-50 Split Layout and Typography
+    st.markdown("""
+        <style>
+        /* Times font family across auth portal */
+        .auth-container, .auth-left, .auth-right, .stTextInput, .stSelectbox, .stButton, div[data-baseweb="tab"] {
+            font-family: 'Times New Roman', Times, serif !important;
+        }
+        
+        /* Left Panel Styling (#092169) */
+        .auth-left-card {
+            background-color: #092169;
+            color: #FFFFFF;
+            padding: 35px 30px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        /* 3D Golden Title */
+        .golden-3d-title {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 3.2rem;
+            font-weight: 800;
+            color: #FFD700;
+            text-shadow: 1px 1px 0px #D4AF37, 
+                         2px 2px 0px #B8860B, 
+                         3px 3px 0px #996515, 
+                         4px 4px 6px rgba(0, 0, 0, 0.7);
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            margin-top: 15px;
+        }
+        
+        /* Tagline in Bright Yellow / Golden */
+        .golden-tagline {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.45rem;
+            font-weight: bold;
+            color: #FFD700;
+            margin-bottom: 25px;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Description Text in White */
+        .left-description {
+            font-size: 1.15rem;
+            line-height: 1.6;
+            color: #FFFFFF;
+            margin-bottom: 25px;
+        }
+        
+        /* Feature Badges */
+        .feature-item {
+            font-size: 1.05rem;
+            color: #FFFFFF;
+            margin-bottom: 12px;
+        }
+        
+        /* Credit Line with Dr. Joydip Chandra in Golden */
+        .credit-line {
+            font-size: 1.05rem;
+            color: #FFFFFF;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 20px;
+            margin-top: 30px;
+        }
+        .golden-credit {
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        /* Right Panel Container Styling */
+        .auth-right-card {
+            background-color: #EBF4FB;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #D0E3F5;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        /* Increased Font Size for Input Labels and Form Controls */
+        .auth-right-card label, .auth-right-card .stMarkdown, .auth-right-card p {
+            font-size: 1.1rem !important;
+            font-family: 'Times New Roman', Times, serif !important;
+            color: #092169 !important;
+            font-weight: bold !important;
+        }
+        
+        .auth-right-card input {
+            font-size: 1.05rem !important;
+            font-family: 'Times New Roman', Times, serif !important;
+        }
+        
+        /* Tab Button Styling */
+        button[data-baseweb="tab"] {
+            font-size: 1.1rem !important;
+            font-weight: bold !important;
+            font-family: 'Times New Roman', Times, serif !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
     
-    with col_center:
+    # 50-50 Responsive Split Columns
+    col_left, col_right = st.columns([1, 1], gap="large")
+    
+    with col_left:
+        st.markdown('<div class="auth-left-card">', unsafe_allow_html=True)
+        
+        # Logo Display
+        logo_path = "OmniStride_logo.png"
+        if not os.path.exists(logo_path) and os.path.exists("/workspace/knowledge/OmniStride_logo.png"):
+            logo_path = "/workspace/knowledge/OmniStride_logo.png"
+            
+        if os.path.exists(logo_path):
+            st.image(logo_path, width=110)
+            
+        # Title in 3D Golden & Tagline
+        st.markdown('<div class="golden-3d-title">OmniStride</div>', unsafe_allow_html=True)
+        st.markdown('<div class="golden-tagline">NET SET Go...to the Goal</div>', unsafe_allow_html=True)
+        
+        # Description in White
+        st.markdown("""
+            <div class="left-description">
+                Comprehensive online MCQ practice and mock test portal for <strong>UGC NET</strong> and <strong>SET</strong>.
+            </div>
+            <div style="margin-bottom: 25px;">
+                <div class="feature-item">🎯 <strong>Unit-wise Targeted Practice</strong></div>
+                <div class="feature-item">⏱️ <strong>120-Min Full Paper Mocks</strong></div>
+                <div class="feature-item">📊 <strong>Instant Scoring & Detailed Solutions</strong></div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Lower Middle Credit Line
+        st.markdown("""
+            <div class="credit-line">
+                Designed & Crafted by: <span class="golden-credit">Dr Joydip Chandra</span> | © 2026
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with col_right:
+        st.markdown('<div class="auth-right-card">', unsafe_allow_html=True)
         auth_tab1, auth_tab2, auth_tab3 = st.tabs(["🔒 Login", "📝 New Registration", "🔑 Forgot Password"])
         
         # ------------------------------------------
@@ -318,10 +388,11 @@ def render_auth_page():
                         st.warning("Email address not found.")
                 except Exception as e:
                     st.error(f"Error fetching user details: {e}")
+                    
+        st.markdown('</div>', unsafe_allow_html=True)
 
     render_footer()
 
-# ==========================================
 # MAIN APPLICATION LOGIC
 # ==========================================
 if not st.session_state.logged_in:
@@ -684,26 +755,26 @@ else:
                             
                             selected_qs = []
                             if "Full Paper" in selected_mod:
-                                for u_name in UNIT_LIST:
-                                    u_num = re.search(r'\d+', u_name).group() if re.search(r'\d+', u_name) else ""
+                                for u_idx in range(1, 11):
+                                    u_pattern = f"Unit\\s*0?{u_idx}\\b"
                                     u_pool = [
                                         q for q in subj_qs 
-                                        if (q.get("unit") == u_name or q.get("topic") == u_name)
-                                        or (u_num and re.search(r'\b' + u_num + r'\b', str(q.get("unit", ""))))
-                                        or (u_num and re.search(r'\b' + u_num + r'\b', str(q.get("topic", ""))))
+                                        if re.search(u_pattern, str(q.get("unit") or ""), re.IGNORECASE) 
+                                        or re.search(u_pattern, str(q.get("topic") or ""), re.IGNORECASE)
                                     ]
                                     if len(u_pool) >= 10:
                                         selected_qs.extend(random.sample(u_pool, 10))
                                     else:
                                         selected_qs.extend(u_pool)
                                 
-                                # Fallback sampling to guarantee 100 questions if unit filters fall short
-                                if len(selected_qs) < 100 and len(subj_qs) > len(selected_qs):
-                                    selected_ids = {id(q) for q in selected_qs}
-                                    remaining_pool = [q for q in subj_qs if id(q) not in selected_ids]
-                                    needed = min(100 - len(selected_qs), len(remaining_pool))
-                                    selected_qs.extend(random.sample(remaining_pool, needed))
-
+                                # Fallback to top up to 100 questions
+                                if len(selected_qs) < 100:
+                                    needed = 100 - len(selected_qs)
+                                    used_ids = {q.get("id") for q in selected_qs if q.get("id") is not None}
+                                    rem_pool = [q for q in subj_qs if q.get("id") not in used_ids]
+                                    if rem_pool:
+                                        selected_qs.extend(random.sample(rem_pool, min(needed, len(rem_pool))))
+                                
                                 random.shuffle(selected_qs)
                                 st.session_state.time_limit = 120 * 60
                             else:
