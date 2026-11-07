@@ -4,7 +4,8 @@ import time
 import re
 from supabase import Client
 
-# MASTER SUBJECT LIST
+# ==========================================
+# MASTER SUBJECT & UNIT LISTS
 # ==========================================
 SUBJECT_LIST = [
     "Paper 1 (General Paper)",
@@ -35,12 +36,26 @@ SUBJECT_LIST = [
 
 UNIT_LIST = [f"Unit {i}" for i in range(1, 11)]
 
+# ==========================================
+# MATCHING & SANITIZATION HELPERS
+# ==========================================
+def get_clean_str(val) -> str:
+    """Sanitizes Supabase string values, handling None and nulls cleanly."""
+    if val is None:
+        return ""
+    s = str(val).strip()
+    if s.lower() in ["none", "null", "nan"]:
+        return ""
+    return s
 
-def is_subject_match(q, target_subject):
+def is_subject_match(q: dict, target_subject: str) -> bool:
+    """Flexible subject matching with clean null handling."""
     if not target_subject:
         return True
-    q_subj = str(q.get("subject", "")).strip().lower()
-    t_subj = str(target_subject).strip().lower()
+    
+    q_subj = get_clean_str(q.get("subject")).lower()
+    t_subj = get_clean_str(target_subject).lower()
+    
     if not q_subj:
         return True
     if q_subj == t_subj:
@@ -54,15 +69,16 @@ def is_subject_match(q, target_subject):
         return True
     return False
 
-def is_unit_match(q, u_idx):
+def is_unit_match(q: dict, u_idx: int) -> bool:
+    """Robust regex matching for Unit 1 through Unit 10."""
     u_str = f"Unit {u_idx}"
     u_str_dash = f"Unit-{u_idx}"
     u_str_nodpace = f"Unit{u_idx}"
     u_str_zero = f"Unit 0{u_idx}"
     
-    val_unit = str(q.get("unit", "")).strip()
-    val_topic = str(q.get("topic", "")).strip()
-    val_unit_num = str(q.get("unit_number", "")).strip() or str(q.get("unit_no", "")).strip() or str(q.get("unit_id", "")).strip()
+    val_unit = get_clean_str(q.get("unit"))
+    val_topic = get_clean_str(q.get("topic"))
+    val_unit_num = get_clean_str(q.get("unit_number")) or get_clean_str(q.get("unit_no")) or get_clean_str(q.get("unit_id"))
     
     if val_unit_num == str(u_idx) or val_unit_num == f"0{u_idx}":
         return True
@@ -85,7 +101,33 @@ def is_unit_match(q, u_idx):
         
     return False
 
+def get_option_val(q: dict, opt_key: str) -> str:
+    """Extracts option value supporting multiple CSV schema column keys."""
+    key = opt_key.lower()
+    possible_keys = [
+        f"option_{key}", f"option{key}", f"opt_{key}", f"opt{key}", key,
+        f"option_{opt_key}", f"option{opt_key}", f"opt_{opt_key}", f"opt{opt_key}", opt_key
+    ]
+    for k in possible_keys:
+        val = q.get(k)
+        if val is not None and str(val).strip() != "":
+            return str(val).strip()
+    return ""
 
+def render_footer():
+    """Renders mandatory copyright & attribution footer across all pages."""
+    st.markdown("---")
+    st.markdown(
+        "<div style='text-align: center; color: #666; padding: 10px; font-size: 0.9em;'>"
+        "<strong>Curated by Dr. Joydip Chandra, BRSC</strong><br>"
+        "Copyright 2026 All rights reserved"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+# ==========================================
+# STUDENT PORTAL RENDERER
+# ==========================================
 def render_student_portal(db: Client):
     st.title("🎓 Crack NET/SET")
     student_tab1, student_tab2, student_tab3 = st.tabs(["📚 Study Resources", "📝 Practice set", "📊 My Performance"])
@@ -239,13 +281,13 @@ def render_student_portal(db: Client):
                                 u_pool = [q for q in subj_qs if is_unit_match(q, u_idx)]
                             else:
                                 u_pool = [q for q in subj_qs if q.get("unit") == selected_mod or q.get("topic") == selected_mod]
-                            
-                            # FALLBACK FOR SINGLE UNIT TEST TO GUARANTEE QUESTIONS ARE AVAILABLE
-                            if not u_pool:
-                                u_pool = subj_qs
-                            if not u_pool:
-                                u_pool = all_qs
-
+                                
+                            if len(u_pool) < 25:
+                                rem_pool = [q for q in subj_qs if id(q) not in [id(item) for item in u_pool]]
+                                needed = 25 - len(u_pool)
+                                if rem_pool:
+                                    u_pool.extend(random.sample(rem_pool, min(needed, len(rem_pool))))
+                                    
                             if u_pool:
                                 selected_qs = random.sample(u_pool, min(25, len(u_pool)))
                             st.session_state.time_limit = 30 * 60
@@ -282,7 +324,8 @@ def render_student_portal(db: Client):
                 total_q = len(st.session_state.test_questions)
                 correct_cnt = 0
                 for idx, q in enumerate(st.session_state.test_questions):
-                    if st.session_state.user_answers.get(idx) == q.get("correct_option"):
+                    c_key = get_clean_str(q.get("correct_option")).upper()
+                    if st.session_state.user_answers.get(idx) == c_key:
                         correct_cnt += 1
                 score_val = correct_cnt * 2
                 max_score = total_q * 2
@@ -297,7 +340,7 @@ def render_student_portal(db: Client):
                         "total_questions": total_q,
                         "percentage": round(pct, 2)
                     }).execute()
-                except Exception as e:
+                except Exception:
                     pass
                     
                 st.session_state.last_score = {
@@ -319,20 +362,16 @@ def render_student_portal(db: Client):
             if "Full Paper" in st.session_state.test_module:
                 st.markdown(f"#### Question {curr_idx + 1} of {total_qs}")
             else:
-                unit_label = q_data.get("unit") or q_data.get("topic") or st.session_state.test_module
+                unit_label = get_clean_str(q_data.get("unit")) or get_clean_str(q_data.get("topic")) or st.session_state.test_module
                 st.markdown(f"#### Question {curr_idx + 1} of {total_qs} (`{unit_label}`)")
             
-            st.write(f"**{q_data.get('question_text')}**")
+            st.write(f"**{q_data.get('question_text', 'Question text unavailable')}**")
             
-            opt_a_val = q_data.get("option_a") or q_data.get("optionA") or q_data.get("opt_a") or q_data.get("a") or ""
-            opt_b_val = q_data.get("option_b") or q_data.get("optionB") or q_data.get("opt_b") or q_data.get("b") or ""
-            opt_c_val = q_data.get("option_c") or q_data.get("optionC") or q_data.get("opt_c") or q_data.get("c") or ""
-            opt_d_val = q_data.get("option_d") or q_data.get("optionD") or q_data.get("opt_d") or q_data.get("d") or ""
             opts = {
-                "A": opt_a_val,
-                "B": opt_b_val,
-                "C": opt_c_val,
-                "D": opt_d_val
+                "A": get_option_val(q_data, "A"),
+                "B": get_option_val(q_data, "B"),
+                "C": get_option_val(q_data, "C"),
+                "D": get_option_val(q_data, "D")
             }
             
             curr_ans = st.session_state.user_answers.get(curr_idx, None)
@@ -365,7 +404,8 @@ def render_student_portal(db: Client):
                     total_q = len(st.session_state.test_questions)
                     correct_cnt = 0
                     for idx, q in enumerate(st.session_state.test_questions):
-                        if st.session_state.user_answers.get(idx) == q.get("correct_option"):
+                        c_key = get_clean_str(q.get("correct_option")).upper()
+                        if st.session_state.user_answers.get(idx) == c_key:
                             correct_cnt += 1
                     score_val = correct_cnt * 2
                     max_score = total_q * 2
@@ -423,19 +463,19 @@ def render_student_portal(db: Client):
             
             for idx, q in enumerate(st.session_state.test_questions, 1):
                 user_ans = st.session_state.user_answers.get(idx - 1, "Unattempted")
-                correct_key = q.get("correct_option")
+                correct_key = get_clean_str(q.get("correct_option")).upper()
                 is_correct = user_ans == correct_key
                 
                 status_icon = "✅ Correct" if is_correct else ("❌ Incorrect" if user_ans != "Unattempted" else "⚪ Unattempted")
                 with st.expander(f"Q{idx}: {q.get('question_text')} [{status_icon}]"):
-                    st.write(f"**A:** {q.get('option_a')}")
-                    st.write(f"**B:** {q.get('option_b')}")
-                    st.write(f"**C:** {q.get('option_c')}")
-                    st.write(f"**D:** {q.get('option_d')}")
+                    st.write(f"**A:** {get_option_val(q, 'A')}")
+                    st.write(f"**B:** {get_option_val(q, 'B')}")
+                    st.write(f"**C:** {get_option_val(q, 'C')}")
+                    st.write(f"**D:** {get_option_val(q, 'D')}")
                     st.write(f"**Your Answer:** {user_ans}")
                     st.write(f"**Correct Key:** {correct_key}")
                     exp = q.get("explanation")
-                    if exp and str(exp).strip():
+                    if exp and get_clean_str(exp):
                         st.info(f"💡 **Explanation / Notes:** {exp}")
 
             if st.button("🔄 Take Another Practice Test", type="primary"):
