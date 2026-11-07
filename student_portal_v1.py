@@ -239,7 +239,13 @@ def render_student_portal(db: Client):
                                 u_pool = [q for q in subj_qs if is_unit_match(q, u_idx)]
                             else:
                                 u_pool = [q for q in subj_qs if q.get("unit") == selected_mod or q.get("topic") == selected_mod]
-                                
+                            
+                            # FALLBACK FOR SINGLE UNIT TEST TO GUARANTEE QUESTIONS ARE AVAILABLE
+                            if not u_pool:
+                                u_pool = subj_qs
+                            if not u_pool:
+                                u_pool = all_qs
+
                             if u_pool:
                                 selected_qs = random.sample(u_pool, min(25, len(u_pool)))
                             st.session_state.time_limit = 30 * 60
@@ -318,11 +324,15 @@ def render_student_portal(db: Client):
             
             st.write(f"**{q_data.get('question_text')}**")
             
+            opt_a_val = q_data.get("option_a") or q_data.get("optionA") or q_data.get("opt_a") or q_data.get("a") or ""
+            opt_b_val = q_data.get("option_b") or q_data.get("optionB") or q_data.get("opt_b") or q_data.get("b") or ""
+            opt_c_val = q_data.get("option_c") or q_data.get("optionC") or q_data.get("opt_c") or q_data.get("c") or ""
+            opt_d_val = q_data.get("option_d") or q_data.get("optionD") or q_data.get("opt_d") or q_data.get("d") or ""
             opts = {
-                "A": q_data.get("option_a", ""),
-                "B": q_data.get("option_b", ""),
-                "C": q_data.get("option_c", ""),
-                "D": q_data.get("option_d", "")
+                "A": opt_a_val,
+                "B": opt_b_val,
+                "C": opt_c_val,
+                "D": opt_d_val
             }
             
             curr_ans = st.session_state.user_answers.get(curr_idx, None)
