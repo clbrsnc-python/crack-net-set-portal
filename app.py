@@ -4,7 +4,6 @@ import time
 import random
 import csv
 import io
-import re
 from supabase import create_client, Client
 
 # ==========================================
@@ -124,122 +123,201 @@ if "last_score" not in st.session_state:
 # AUTHENTICATION PORTAL (LOGIN / REGISTER / RESET)
 # ==========================================
 def render_auth_page():
-    st.title("📚 Crack NET/SET")
-    st.markdown("---")
-    
-    auth_tab1, auth_tab2, auth_tab3 = st.tabs(["🔒 Login", "📝 New Registration", "🔑 Forgot Password"])
-    
-    # ------------------------------------------
-    # TAB 1: LOGIN
-    # ------------------------------------------
-    with auth_tab1:
-        st.subheader("Login to Your Account")
-        with st.form("login_form"):
-            email_input = st.text_input("Email Address").strip().lower()
-            pass_input = st.text_input("Password", type="password").strip()
-            login_submitted = st.form_submit_button("Sign In")
-            
-        if login_submitted:
-            if not email_input or not pass_input:
-                st.warning("Please enter both email and password.")
-            else:
-                try:
-                    res = db.table("users").select("*").eq("email", email_input).execute()
-                    if res.data and len(res.data) > 0:
-                        user_data = res.data[0]
-                        stored_password = user_data.get("password", "")
-                        
-                        if verify_credential(pass_input, stored_password):
-                            st.session_state.logged_in = True
-                            st.session_state.user = user_data
-                            st.session_state.role = user_data.get("role", "student")
-                            st.success(f"Welcome back, {user_data.get('name', 'User')}!")
-                            st.rerun()
-                        else:
-                            st.error("Incorrect password. Please try again.")
-                    else:
-                        st.error("No account found with this email address.")
-                except Exception as e:
-                    st.error(f"Login failed: {e}")
+    # Inject Custom CSS for Landing Page GUI
+    st.markdown('''
+    <style>
+    /* Hero Banner Styling */
+    .hero-container {
+        background: linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%);
+        padding: 35px 25px;
+        border-radius: 16px;
+        color: #ffffff;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 25px rgba(30, 58, 138, 0.2);
+    }
+    .hero-title {
+        font-size: 2.3rem;
+        font-weight: 800;
+        margin-bottom: 8px;
+        color: #FFFFFF;
+        letter-spacing: -0.5px;
+    }
+    .hero-subtitle {
+        font-size: 1.1rem;
+        font-weight: 400;
+        color: #E0E7FF;
+        max-width: 850px;
+        margin: 0 auto 16px auto;
+        line-height: 1.5;
+    }
+    .hero-author {
+        font-size: 0.92rem;
+        font-weight: 500;
+        color: #93C5FD;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding-top: 12px;
+        margin-top: 14px;
+        display: inline-block;
+    }
+    .feature-badge {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: #FFFFFF;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 4px;
+        display: inline-block;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #1E3A8A !important;
+        color: #FFFFFF !important;
+    }
+    </style>
+    ''', unsafe_allow_html=True)
 
-    # ------------------------------------------
-    # TAB 2: NEW REGISTRATION
-    # ------------------------------------------
-    with auth_tab2:
-        st.subheader("Create a New Account")
-        with st.form("register_form", clear_on_submit=True):
-            reg_name = st.text_input("Full Name")
-            reg_email = st.text_input("Email Address").strip().lower()
-            reg_subject = st.selectbox("Target Subject", SUBJECT_LIST)
-            reg_pass = st.text_input("Password", type="password")
-            reg_question = st.selectbox(
-                "Security Question",
-                [
-                    "What is your mother's maiden name?",
-                    "What was the name of your first pet?",
-                    "What is your favorite book/subject?",
-                    "What city were you born in?"
-                ]
-            )
-            reg_answer = st.text_input("Security Answer", type="password")
-            reg_submitted = st.form_submit_button("Submit Registration")
-            
-        if reg_submitted:
-            if not reg_name or not reg_email or not reg_pass or not reg_answer:
-                st.warning("Please fill in all required fields.")
-            else:
-                try:
-                    existing = db.table("users").select("email").eq("email", reg_email).execute()
-                    if existing.data and len(existing.data) > 0:
-                        st.error("An account with this email already exists.")
-                    else:
-                        new_user = {
-                            "name": reg_name.strip(),
-                            "email": reg_email,
-                            "subject": reg_subject,
-                            "password": hash_text(reg_pass),
-                            "secret_question": reg_question,
-                            "secret_answer": hash_text(reg_answer),
-                            "role": "student"
-                        }
-                        db.table("users").insert(new_user).execute()
-                        st.success("✅ Registration successful! Please switch to the Login tab to sign in.")
-                except Exception as e:
-                    st.error(f"Registration failed: {e}")
+    # Hero Banner Container (From Draft Login Page)
+    st.markdown('''
+    <div class="hero-container">
+        <div class="hero-title">📚 Crack NET/SET Portal</div>
+        <div class="hero-subtitle">Comprehensive online MCQ practice and mock test portal for UGC NET and SET</div>
+        <div>
+            <span class="feature-badge">🎯 Unit-wise Targeted Practice</span>
+            <span class="feature-badge">⏱️ 120-Min Full Paper Mocks</span>
+            <span class="feature-badge">📊 Instant Scoring & Detailed Solutions</span>
+        </div>
+        <div class="hero-author">
+            Designed & Crafted by: <strong>Dr Joydip Chandra</strong> | © 2026
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
 
-    # ------------------------------------------
-    # TAB 3: FORGOT PASSWORD
-    # ------------------------------------------
-    with auth_tab3:
-        st.subheader("Reset Your Password")
-        e_rec = st.text_input("Enter Registered Email").strip().lower()
+    # Centered Card Layout for Authentication Forms
+    col_left, col_center, col_right = st.columns([1, 2.2, 1])
+    
+    with col_center:
+        auth_tab1, auth_tab2, auth_tab3 = st.tabs(["🔒 Login", "📝 New Registration", "🔑 Forgot Password"])
         
-        if e_rec:
-            try:
-                user_res = db.table("users").select("secret_question", "secret_answer").eq("email", e_rec).execute()
-                if user_res.data and len(user_res.data) > 0:
-                    user_record = user_res.data[0]
-                    sec_q = user_record.get("secret_question", "Security Question")
-                    stored_ans = user_record.get("secret_answer", "")
-                    
-                    st.info(f"**Security Question:** {sec_q}")
-                    
-                    with st.form("reset_pass_form"):
-                        ans_input = st.text_input("Your Security Answer", type="password")
-                        new_pass_input = st.text_input("Enter New Password", type="password")
-                        reset_submitted = st.form_submit_button("Reset Password")
-                        
-                    if reset_submitted:
-                        if verify_credential(ans_input, stored_ans):
-                            new_hashed_pass = hash_text(new_pass_input)
-                            db.table("users").update({"password": new_hashed_pass}).eq("email", e_rec).execute()
-                            st.success("✅ Password updated successfully! Please log in with your new password.")
-                        else:
-                            st.error("Incorrect security answer.")
+        # ------------------------------------------
+        # TAB 1: LOGIN
+        # ------------------------------------------
+        with auth_tab1:
+            st.subheader("Login to Your Account")
+            with st.form("login_form"):
+                email_input = st.text_input("Email Address").strip().lower()
+                pass_input = st.text_input("Password", type="password").strip()
+                login_submitted = st.form_submit_button("Sign In", use_container_width=True)
+                
+            if login_submitted:
+                if not email_input or not pass_input:
+                    st.warning("Please enter both email and password.")
                 else:
-                    st.warning("Email address not found.")
-            except Exception as e:
-                st.error(f"Error fetching user details: {e}")
+                    try:
+                        res = db.table("users").select("*").eq("email", email_input).execute()
+                        if res.data and len(res.data) > 0:
+                            user_data = res.data[0]
+                            stored_password = user_data.get("password", "")
+                            
+                            if verify_credential(pass_input, stored_password):
+                                st.session_state.logged_in = True
+                                st.session_state.user = user_data
+                                st.session_state.role = user_data.get("role", "student")
+                                st.success(f"Welcome back, {user_data.get('name', 'User')}!")
+                                st.rerun()
+                            else:
+                                st.error("Incorrect password. Please try again.")
+                        else:
+                            st.error("No account found with this email address.")
+                    except Exception as e:
+                        st.error(f"Login failed: {e}")
+
+        # ------------------------------------------
+        # TAB 2: NEW REGISTRATION
+        # ------------------------------------------
+        with auth_tab2:
+            st.subheader("Create a New Account")
+            with st.form("register_form", clear_on_submit=True):
+                reg_name = st.text_input("Full Name")
+                reg_email = st.text_input("Email Address").strip().lower()
+                reg_subject = st.selectbox("Target Subject", SUBJECT_LIST)
+                reg_pass = st.text_input("Password", type="password")
+                reg_question = st.selectbox(
+                    "Security Question",
+                    [
+                        "What is your mother's maiden name?",
+                        "What was the name of your first pet?",
+                        "What is your favorite book/subject?",
+                        "What city were you born in?"
+                    ]
+                )
+                reg_answer = st.text_input("Security Answer", type="password")
+                reg_submitted = st.form_submit_button("Submit Registration", use_container_width=True)
+                
+            if reg_submitted:
+                if not reg_name or not reg_email or not reg_pass or not reg_answer:
+                    st.warning("Please fill in all required fields.")
+                else:
+                    try:
+                        existing = db.table("users").select("email").eq("email", reg_email).execute()
+                        if existing.data and len(existing.data) > 0:
+                            st.error("An account with this email already exists.")
+                        else:
+                            new_user = {
+                                "name": reg_name.strip(),
+                                "email": reg_email,
+                                "subject": reg_subject,
+                                "password": hash_text(reg_pass),
+                                "secret_question": reg_question,
+                                "secret_answer": hash_text(reg_answer),
+                                "role": "student"
+                            }
+                            db.table("users").insert(new_user).execute()
+                            st.success("✅ Registration successful! Please switch to the Login tab to sign in.")
+                    except Exception as e:
+                        st.error(f"Registration failed: {e}")
+
+        # ------------------------------------------
+        # TAB 3: FORGOT PASSWORD
+        # ------------------------------------------
+        with auth_tab3:
+            st.subheader("Reset Your Password")
+            e_rec = st.text_input("Enter Registered Email").strip().lower()
+            
+            if e_rec:
+                try:
+                    user_res = db.table("users").select("secret_question", "secret_answer").eq("email", e_rec).execute()
+                    if user_res.data and len(user_res.data) > 0:
+                        user_record = user_res.data[0]
+                        sec_q = user_record.get("secret_question", "Security Question")
+                        stored_ans = user_record.get("secret_answer", "")
+                        
+                        st.info(f"**Security Question:** {sec_q}")
+                        
+                        with st.form("reset_pass_form"):
+                            ans_input = st.text_input("Your Security Answer", type="password")
+                            new_pass_input = st.text_input("Enter New Password", type="password")
+                            reset_submitted = st.form_submit_button("Reset Password", use_container_width=True)
+                            
+                        if reset_submitted:
+                            if verify_credential(ans_input, stored_ans):
+                                new_hashed_pass = hash_text(new_pass_input)
+                                db.table("users").update({"password": new_hashed_pass}).eq("email", e_rec).execute()
+                                st.success("✅ Password updated successfully! Please log in with your new password.")
+                            else:
+                                st.error("Incorrect security answer.")
+                    else:
+                        st.warning("Email address not found.")
+                except Exception as e:
+                    st.error(f"Error fetching user details: {e}")
 
     render_footer()
 
@@ -607,46 +685,31 @@ else:
                             selected_qs = []
                             if "Full Paper" in selected_mod:
                                 for u_name in UNIT_LIST:
-                                    u_num_match = re.search(r'\d+', u_name)
-                                    u_num = u_num_match.group() if u_num_match else ""
-                                    
-                                    u_pool = []
-                                    for q in subj_qs:
-                                        q_u = str(q.get("unit") or q.get("topic") or "").strip()
-                                        q_num_match = re.search(r'\d+', q_u)
-                                        q_num = q_num_match.group() if q_num_match else ""
-                                        if q_u == u_name or (u_num and q_num == u_num):
-                                            u_pool.append(q)
-                                            
+                                    u_num = re.search(r'\d+', u_name).group() if re.search(r'\d+', u_name) else ""
+                                    u_pool = [
+                                        q for q in subj_qs 
+                                        if (q.get("unit") == u_name or q.get("topic") == u_name)
+                                        or (u_num and re.search(r'\b' + u_num + r'\b', str(q.get("unit", ""))))
+                                        or (u_num and re.search(r'\b' + u_num + r'\b', str(q.get("topic", ""))))
+                                    ]
                                     if len(u_pool) >= 10:
                                         selected_qs.extend(random.sample(u_pool, 10))
                                     else:
                                         selected_qs.extend(u_pool)
                                 
-                                # Fallback if less than 100 questions selected
-                                if len(selected_qs) < 100:
-                                    selected_ids = {q.get("id") for q in selected_qs if q.get("id") is not None}
-                                    remaining_pool = [q for q in subj_qs if q.get("id") not in selected_ids]
-                                    needed = 100 - len(selected_qs)
-                                    if remaining_pool:
-                                        selected_qs.extend(random.sample(remaining_pool, min(needed, len(remaining_pool))))
-                                
+                                # Fallback sampling to guarantee 100 questions if unit filters fall short
+                                if len(selected_qs) < 100 and len(subj_qs) > len(selected_qs):
+                                    selected_ids = {id(q) for q in selected_qs}
+                                    remaining_pool = [q for q in subj_qs if id(q) not in selected_ids]
+                                    needed = min(100 - len(selected_qs), len(remaining_pool))
+                                    selected_qs.extend(random.sample(remaining_pool, needed))
+
                                 random.shuffle(selected_qs)
                                 st.session_state.time_limit = 120 * 60
                             else:
-                                u_num_match = re.search(r'\d+', selected_mod)
-                                u_num = u_num_match.group() if u_num_match else ""
-                                u_pool = []
-                                for q in subj_qs:
-                                    q_u = str(q.get("unit") or q.get("topic") or "").strip()
-                                    q_num_match = re.search(r'\d+', q_u)
-                                    q_num = q_num_match.group() if q_num_match else ""
-                                    if q_u == selected_mod or (u_num and q_num == u_num):
-                                        u_pool.append(q)
+                                u_pool = [q for q in subj_qs if q.get("unit") == selected_mod or q.get("topic") == selected_mod]
                                 if u_pool:
                                     selected_qs = random.sample(u_pool, min(25, len(u_pool)))
-                                else:
-                                    selected_qs = random.sample(subj_qs, min(25, len(subj_qs))) if subj_qs else []
                                 st.session_state.time_limit = 30 * 60
                             
                             if selected_qs:
