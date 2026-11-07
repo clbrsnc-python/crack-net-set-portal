@@ -1,10 +1,10 @@
 import streamlit as st
 import hashlib
-import re
 import time
 import random
 import csv
 import io
+import re
 from supabase import create_client, Client
 
 # ==========================================
@@ -607,30 +607,46 @@ else:
                             selected_qs = []
                             if "Full Paper" in selected_mod:
                                 for u_name in UNIT_LIST:
-                                    u_num = re.search(r'\d+', u_name).group() if re.search(r'\d+', u_name) else ""
-                                    u_pool = [
-                                        q for q in subj_qs 
-                                        if (q.get("unit") and (u_name.lower() in str(q.get("unit")).lower() or (u_num and re.search(r'0*' + u_num + r'', str(q.get("unit"))))))
-                                        or (q.get("topic") and (u_name.lower() in str(q.get("topic")).lower() or (u_num and re.search(r'0*' + u_num + r'', str(q.get("topic"))))))
-                                    ]
+                                    u_num_match = re.search(r'\d+', u_name)
+                                    u_num = u_num_match.group() if u_num_match else ""
+                                    
+                                    u_pool = []
+                                    for q in subj_qs:
+                                        q_u = str(q.get("unit") or q.get("topic") or "").strip()
+                                        q_num_match = re.search(r'\d+', q_u)
+                                        q_num = q_num_match.group() if q_num_match else ""
+                                        if q_u == u_name or (u_num and q_num == u_num):
+                                            u_pool.append(q)
+                                            
                                     if len(u_pool) >= 10:
                                         selected_qs.extend(random.sample(u_pool, 10))
                                     else:
                                         selected_qs.extend(u_pool)
                                 
+                                # Fallback if less than 100 questions selected
                                 if len(selected_qs) < 100:
-                                    remaining_needed = 100 - len(selected_qs)
-                                    selected_ids = {id(q) for q in selected_qs}
-                                    pool_left = [q for q in subj_qs if id(q) not in selected_ids]
-                                    if pool_left:
-                                        selected_qs.extend(random.sample(pool_left, min(remaining_needed, len(pool_left))))
+                                    selected_ids = {q.get("id") for q in selected_qs if q.get("id") is not None}
+                                    remaining_pool = [q for q in subj_qs if q.get("id") not in selected_ids]
+                                    needed = 100 - len(selected_qs)
+                                    if remaining_pool:
+                                        selected_qs.extend(random.sample(remaining_pool, min(needed, len(remaining_pool))))
                                 
                                 random.shuffle(selected_qs)
                                 st.session_state.time_limit = 120 * 60
                             else:
-                                u_pool = [q for q in subj_qs if q.get("unit") == selected_mod or q.get("topic") == selected_mod]
+                                u_num_match = re.search(r'\d+', selected_mod)
+                                u_num = u_num_match.group() if u_num_match else ""
+                                u_pool = []
+                                for q in subj_qs:
+                                    q_u = str(q.get("unit") or q.get("topic") or "").strip()
+                                    q_num_match = re.search(r'\d+', q_u)
+                                    q_num = q_num_match.group() if q_num_match else ""
+                                    if q_u == selected_mod or (u_num and q_num == u_num):
+                                        u_pool.append(q)
                                 if u_pool:
                                     selected_qs = random.sample(u_pool, min(25, len(u_pool)))
+                                else:
+                                    selected_qs = random.sample(subj_qs, min(25, len(subj_qs))) if subj_qs else []
                                 st.session_state.time_limit = 30 * 60
                             
                             if selected_qs:
@@ -788,13 +804,6 @@ else:
             elif st.session_state.test_completed:
                 res = st.session_state.last_score
                 st.success("🎉 Test Submitted Successfully!")
-                btn_top_col1, btn_top_col2 = st.columns([3, 1])
-                with btn_top_col2:
-                    if st.button("🔄 Take Another Test", key="reset_test_top", type="primary"):
-                        st.session_state.test_completed = False
-                        st.session_state.test_questions = []
-                        st.session_state.user_answers = {}
-                        st.rerun()
                 
                 m1, m2, m3 = st.columns(3)
                 with m1:
