@@ -148,11 +148,17 @@ def render_auth_page():
                             stored_password = user_data.get("password", "")
 
                             if verify_credential(pass_input, stored_password):
-                                st.session_state.logged_in = True
-                                st.session_state.user = user_data
-                                st.session_state.role = user_data.get("role", "student")
-                                st.success(f"Welcome back, {user_data.get('name', 'User')}!")
-                                st.rerun()
+                                u_status = user_data.get("status", "approved")
+                                if u_status == "pending":
+                                    st.warning("⏳ Your account is awaiting admin approval. Please check back later or contact Dr. Joydip Chandra.")
+                                elif u_status == "rejected":
+                                    st.error("⛔ Access request declined. Please contact the administrator.")
+                                else:
+                                    st.session_state.logged_in = True
+                                    st.session_state.user = user_data
+                                    st.session_state.role = user_data.get("role", "student")
+                                    st.success(f"Welcome back, {user_data.get('name', 'User')}!")
+                                    st.rerun()
                             else:
                                 st.error("Incorrect password. Please try again.")
                         else:
@@ -195,10 +201,11 @@ def render_auth_page():
                                 "password": hash_text(reg_pass),
                                 "secret_question": reg_question,
                                 "secret_answer": hash_text(reg_answer),
-                                "role": "student"
+                                "role": "student",
+                                "status": "pending"
                             }
                             db.table("users").insert(new_user).execute()
-                            st.success("✅ Registration successful! Please switch to the Login tab to sign in.")
+                            st.success("✅ Registration submitted successfully! Your account is currently pending approval by Dr. Joydip Chandra.")
                     except Exception as e:
                         st.error(f"Registration failed: {e}")
 
