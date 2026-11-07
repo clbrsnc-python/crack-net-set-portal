@@ -12,8 +12,8 @@ from supabase import create_client, Client
 # PAGE CONFIGURATION
 # ==========================================
 st.set_page_config(
-    page_title="Crack NET/SET",
-    page_icon="📚",
+    page_title="OmniStride",
+    page_icon="🎯",
     layout="wide"
 )
 
@@ -131,7 +131,7 @@ def render_auth_page():
     st.markdown('''
     <style>
     .stApp {
-        background-color: #0F172A;
+        background-color: #EBF4FB;
     }
     div[data-baseweb="tab-list"] {
         background-color: transparent !important;
