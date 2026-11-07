@@ -241,7 +241,7 @@ def render_auth_page():
 
     with col_right:
         st.markdown("""
-<div style="background-color: #EBF4FB; border-radius: 16px; padding: 25px; border: 1px solid #D0E2F5; box-shadow: 0 6px 18px rgba(0,0,0,0.06); font-family: 'Times New Roman', Times, serif;">
+<div style="background-color: #EBF4FB; font-family: 'Times New Roman', Times, serif;">
 """, unsafe_allow_html=True)
 
         auth_tab1, auth_tab2, auth_tab3 = st.tabs(["🔒 Login", "📝 New Registration", "🔑 Forgot Password"])
