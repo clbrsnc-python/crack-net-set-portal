@@ -1,5 +1,6 @@
 import streamlit as st
 import hashlib
+import base64
 import re
 import time
 import random
@@ -11,8 +12,8 @@ from supabase import create_client, Client
 # PAGE CONFIGURATION
 # ==========================================
 st.set_page_config(
-    page_title="Crack NET/SET",
-    page_icon="📚",
+    page_title="OmniStride",
+    page_icon="🎯",
     layout="wide"
 )
 
@@ -127,99 +128,68 @@ if "last_score" not in st.session_state:
 # AUTHENTICATION PORTAL (LOGIN / REGISTER / RESET)
 # ==========================================
 def render_auth_page():
-    # Global CSS Overrides for Landing Page & Form Styling
-    st.markdown("""
+    st.markdown('''
     <style>
-    /* Remove stray padding & force transparent background for tab bar */
+    .stApp {
+        background-color: #EBF4FB;
+    }
     div[data-baseweb="tab-list"] {
         background-color: transparent !important;
-        gap: 8px;
     }
-    button[data-baseweb="tab"] {
+    div[data-baseweb="tab"] {
         font-family: 'Times New Roman', Times, serif !important;
         font-size: 1.1rem !important;
         font-weight: bold !important;
-        border-radius: 8px 8px 0 0 !important;
-        padding: 10px 20px !important;
-        color: #092169 !important;
     }
-    button[aria-selected="true"] {
-        background-color: #EBF4FB !important;
-        color: #875e07 !important;
-        border-bottom: 3px solid #875e07 !important;
-    }
-    /* Input Labels & Buttons Styling */
-    div[data-widget="stForm"] label, div[data-baseweb="select"] label {
-        font-family: 'Times New Roman', Times, serif !important;
-        font-size: 1.1rem !important;
-        color: #092169 !important;
-        font-weight: 600 !important;
-    }
-    div[data-baseweb="input"] input {
-        font-family: 'Times New Roman', Times, serif !important;
-        font-size: 1.1rem !important;
-    }
-    div[data-testid="stFormSubmitButton"] button {
-        background-color: #092169 !important;
-        color: #FFFFFF !important;
+    .stButton>button {
         font-family: 'Times New Roman', Times, serif !important;
         font-size: 1.15rem !important;
         font-weight: bold !important;
-        border-radius: 8px !important;
-        border: none !important;
-        padding: 8px 16px !important;
     }
-    div[data-testid="stFormSubmitButton"] button:hover {
-        background-color: #875e07 !important;
-        color: #FFFFFF !important;
+    input, label, select {
+        font-family: 'Times New Roman', Times, serif !important;
     }
     </style>
-    """, unsafe_allow_html=True)
+    ''', unsafe_allow_html=True)
 
     col_left, col_right = st.columns([1, 1], gap="large")
 
     with col_left:
-        # Left Panel HTML Container (Dark Academic Blue #092169)
-        st.markdown(f"""
-<div style="background-color: #092169; padding: 40px 30px; border-radius: 16px; text-align: center; color: #FFFFFF; box-shadow: 0 8px 24px rgba(0,0,0,0.15); min-height: 520px; display: flex; flex-direction: column; justify-content: space-between;">
-    <div>
-        <div style="margin-bottom: 25px;">
-            <img src="data:image/png;base64,{LOGO_B64}" style="width: 380px; max-width: 95%; height: auto; display: block; margin: 0 auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
+        st.markdown(f'''
+<div style="background-color: #092169; padding: 35px 25px; border-radius: 16px; text-align: center; color: #FFFFFF; font-family: 'Times New Roman', Times, serif; box-shadow: 0 8px 24px rgba(0,0,0,0.25);">
+    <div style="margin-bottom: 20px;">
+        <img src="data:image/png;base64,{LOGO_B64}" style="width: 380px; max-width: 95%; height: auto; display: block; margin: 0 auto;">
+    </div>
+    <p style="font-size: 1.25rem; line-height: 1.5; color: #F8FAFC; margin-bottom: 25px; padding: 0 10px;">
+        Comprehensive online MCQ practice and mock test portal for UGC NET and SET.
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 14px; text-align: left; max-width: 380px; margin: 0 auto 25px auto; font-size: 1.1rem;">
+        <div style="background: rgba(255,255,255,0.08); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #875e07;">
+            🎯 <strong>Unit-wise Targeted Practice</strong>
         </div>
-        <p style="font-family: 'Times New Roman', Times, serif; font-size: 1.25rem; line-height: 1.5; color: #F8FAFC; margin-bottom: 30px; padding: 0 10px;">
-            Comprehensive online MCQ practice and mock test portal for UGC NET and SET.
-        </p>
-        <div style="display: flex; flex-direction: column; gap: 14px; text-align: left; max-width: 380px; margin: 0 auto 30px auto; font-family: 'Times New Roman', Times, serif; font-size: 1.1rem;">
-            <div style="background: rgba(255,255,255,0.08); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #875e07;">
-                🎯 <strong>Unit-wise Targeted Practice</strong>
-            </div>
-            <div style="background: rgba(255,255,255,0.08); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #875e07;">
-                ⏱️ <strong>120-Min Full Paper Mocks</strong>
-            </div>
-            <div style="background: rgba(255,255,255,0.08); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #875e07;">
-                📊 <strong>Instant Scoring & Detailed Solutions</strong>
-            </div>
+        <div style="background: rgba(255,255,255,0.08); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #875e07;">
+            ⏱️ <strong>120-Min Full Paper Mocks</strong>
+        </div>
+        <div style="background: rgba(255,255,255,0.08); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #875e07;">
+            📊 <strong>Instant Scoring & Detailed Solutions</strong>
         </div>
     </div>
-    <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.15); font-family: 'Times New Roman', Times, serif; font-size: 1rem; color: #E2E8F0;">
+    <div style="text-align: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.15); font-size: 1rem; color: #E2E8F0;">
         Designed & Crafted by: <span style="color: #875e07; font-weight: bold;">Dr Joydip Chandra</span> | &copy; 2026
     </div>
 </div>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
 
     with col_right:
-        # Right Panel HTML Container (Light Academic Blue Card #EBF4FB)
-        st.markdown("""
-<div style="background-color: #EBF4FB; border-radius: 16px; padding: 25px; border: 1px solid #D0E2F5; box-shadow: 0 6px 20px rgba(0,0,0,0.06); font-family: 'Times New Roman', Times, serif;">
-""", unsafe_allow_html=True)
+        st.markdown('''
+<div style="background-color: #EBF4FB; border-radius: 16px; padding: 25px; border: 1px solid #D0E2F5; box-shadow: 0 8px 24px rgba(0,0,0,0.08); font-family: 'Times New Roman', Times, serif;">
+''', unsafe_allow_html=True)
 
         auth_tab1, auth_tab2, auth_tab3 = st.tabs(["🔒 Login", "📝 New Registration", "🔑 Forgot Password"])
 
-        # ------------------------------------------
         # TAB 1: LOGIN
-        # ------------------------------------------
         with auth_tab1:
-            st.markdown("<h3 style='font-family: 'Times New Roman', Times, serif; color: #092169; margin-top: 10px; margin-bottom: 20px;'>Login to Your Account</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='font-family: Times New Roman, Times, serif; color: #092169; margin-top: 10px;'>Login to Your Account</h3>", unsafe_allow_html=True)
             with st.form("login_form"):
                 email_input = st.text_input("Email Address").strip().lower()
                 pass_input = st.text_input("Password", type="password").strip()
@@ -248,11 +218,9 @@ def render_auth_page():
                     except Exception as e:
                         st.error(f"Login failed: {e}")
 
-        # ------------------------------------------
         # TAB 2: NEW REGISTRATION
-        # ------------------------------------------
         with auth_tab2:
-            st.markdown("<h3 style='font-family: 'Times New Roman', Times, serif; color: #092169; margin-top: 10px; margin-bottom: 20px;'>Create a New Account</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='font-family: Times New Roman, Times, serif; color: #092169; margin-top: 10px;'>Create a New Account</h3>", unsafe_allow_html=True)
             with st.form("register_form", clear_on_submit=True):
                 reg_name = st.text_input("Full Name")
                 reg_email = st.text_input("Email Address").strip().lower()
@@ -293,11 +261,9 @@ def render_auth_page():
                     except Exception as e:
                         st.error(f"Registration failed: {e}")
 
-        # ------------------------------------------
         # TAB 3: FORGOT PASSWORD
-        # ------------------------------------------
         with auth_tab3:
-            st.markdown("<h3 style='font-family: 'Times New Roman', Times, serif; color: #092169; margin-top: 10px; margin-bottom: 20px;'>Reset Your Password</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='font-family: Times New Roman, Times, serif; color: #092169; margin-top: 10px;'>Reset Your Password</h3>", unsafe_allow_html=True)
             e_rec = st.text_input("Enter Registered Email").strip().lower()
 
             if e_rec:
@@ -329,6 +295,7 @@ def render_auth_page():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
+    render_footer()
 
 # ==========================================
 # MAIN APPLICATION LOGIC
