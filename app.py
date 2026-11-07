@@ -1,5 +1,6 @@
 import streamlit as st
 import hashlib
+import re
 import time
 import random
 import csv
@@ -596,57 +597,38 @@ else:
                 if st.button("🚀 Start Practice Test", use_container_width=True):
                     with st.spinner("Preparing question paper..."):
                         try:
-                            # Fetch with large range (0 to 4999) to bypass Supabase PostgREST default 1000 row limit
                             q_res = db.table("questions").select("*").range(0, 4999).execute()
                             all_qs = q_res.data if q_res.data else []
-                            
                             subj_qs = [
                                 q for q in all_qs 
-                                if str(q.get("subject")).strip().lower() == str(user_subject).strip().lower() or "paper 1" in str(q.get("subject")).lower()
+                                if q.get("subject") == user_subject or "Paper 1" in str(q.get("subject"))
                             ]
                             
-                            def matches_unit_smart(q_item, target_u_name):
-                                u_val = str(q_item.get("unit") or q_item.get("topic") or "").strip().lower()
-                                t_val = str(target_u_name).strip().lower()
-                                if u_val == t_val:
-                                    return True
-                                match_t = re.search(r'\d+', t_val)
-                                match_u = re.search(r'\d+', u_val)
-                                if match_t and match_u and match_t.group() == match_u.group():
-                                    return True
-                                return False
-
                             selected_qs = []
-                            used_indices = set()
-                            
                             if "Full Paper" in selected_mod:
                                 for u_name in UNIT_LIST:
+                                    u_num = re.search(r'\d+', u_name).group() if re.search(r'\d+', u_name) else ""
                                     u_pool = [
-                                        (idx, q) for idx, q in enumerate(subj_qs) 
-                                        if matches_unit_smart(q, u_name) and idx not in used_indices
+                                        q for q in subj_qs 
+                                        if (q.get("unit") and (u_name.lower() in str(q.get("unit")).lower() or (u_num and re.search(r'0*' + u_num + r'', str(q.get("unit"))))))
+                                        or (q.get("topic") and (u_name.lower() in str(q.get("topic")).lower() or (u_num and re.search(r'0*' + u_num + r'', str(q.get("topic"))))))
                                     ]
                                     if len(u_pool) >= 10:
-                                        picked = random.sample(u_pool, 10)
+                                        selected_qs.extend(random.sample(u_pool, 10))
                                     else:
-                                        picked = u_pool
-                                    for idx, q in picked:
-                                        used_indices.add(idx)
-                                        selected_qs.append(q)
+                                        selected_qs.extend(u_pool)
                                 
-                                # Fallback: if total questions selected < 100, fill up to 100 from remaining subj_qs
                                 if len(selected_qs) < 100:
-                                    remaining = [(idx, q) for idx, q in enumerate(subj_qs) if idx not in used_indices]
-                                    needed = 100 - len(selected_qs)
-                                    if remaining:
-                                        extra = random.sample(remaining, min(needed, len(remaining)))
-                                        for idx, q in extra:
-                                            used_indices.add(idx)
-                                            selected_qs.append(q)
-                                            
+                                    remaining_needed = 100 - len(selected_qs)
+                                    selected_ids = {id(q) for q in selected_qs}
+                                    pool_left = [q for q in subj_qs if id(q) not in selected_ids]
+                                    if pool_left:
+                                        selected_qs.extend(random.sample(pool_left, min(remaining_needed, len(pool_left))))
+                                
                                 random.shuffle(selected_qs)
                                 st.session_state.time_limit = 120 * 60
                             else:
-                                u_pool = [q for q in subj_qs if matches_unit_smart(q, selected_mod)]
+                                u_pool = [q for q in subj_qs if q.get("unit") == selected_mod or q.get("topic") == selected_mod]
                                 if u_pool:
                                     selected_qs = random.sample(u_pool, min(25, len(u_pool)))
                                 st.session_state.time_limit = 30 * 60
@@ -806,6 +788,13 @@ else:
             elif st.session_state.test_completed:
                 res = st.session_state.last_score
                 st.success("🎉 Test Submitted Successfully!")
+                btn_top_col1, btn_top_col2 = st.columns([3, 1])
+                with btn_top_col2:
+                    if st.button("🔄 Take Another Test", key="reset_test_top", type="primary"):
+                        st.session_state.test_completed = False
+                        st.session_state.test_questions = []
+                        st.session_state.user_answers = {}
+                        st.rerun()
                 
                 m1, m2, m3 = st.columns(3)
                 with m1:
