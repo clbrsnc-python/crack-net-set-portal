@@ -413,6 +413,93 @@ def render_student_portal(db: Client):
     .st-key-practice-unit-card-6 [data-testid="stButton"] button,
     .st-key-practice-unit-card-9 [data-testid="stButton"] button { background:linear-gradient(135deg,#7C3AED,#4C1D95)!important;border-color:#C4B5FD!important; }
 
+    /* Reliable contrast throughout the selected content panels. */
+    .st-key-content-panel-study,
+    .st-key-content-panel-practice,
+    .st-key-content-panel-performance {
+        color: #F8FAFC !important;
+    }
+    .st-key-content-panel-study [data-testid="stMarkdownContainer"] p,
+    .st-key-content-panel-study [data-testid="stMarkdownContainer"] li,
+    .st-key-content-panel-practice [data-testid="stMarkdownContainer"] p,
+    .st-key-content-panel-practice [data-testid="stMarkdownContainer"] li,
+    .st-key-content-panel-performance [data-testid="stMarkdownContainer"] p,
+    .st-key-content-panel-performance [data-testid="stMarkdownContainer"] li,
+    .st-key-content-panel-study label,
+    .st-key-content-panel-practice label,
+    .st-key-content-panel-performance label {
+        color: #F8FAFC !important;
+    }
+    .st-key-content-panel-study h4,
+    .st-key-content-panel-practice h4,
+    .st-key-content-panel-performance h4 {
+        color: #F6D77A !important;
+        font-weight: 800 !important;
+    }
+    .st-key-content-panel-study [data-testid="stMarkdownContainer"] strong,
+    .st-key-content-panel-practice [data-testid="stMarkdownContainer"] strong,
+    .st-key-content-panel-performance [data-testid="stMarkdownContainer"] strong {
+        color: #FFFFFF !important;
+    }
+
+    /* Six Study Resources submenus: equal width, equal height, bold readable labels. */
+    .st-key-resource-tab-0 [data-testid="stButton"] button,
+    .st-key-resource-tab-1 [data-testid="stButton"] button,
+    .st-key-resource-tab-2 [data-testid="stButton"] button,
+    .st-key-resource-tab-3 [data-testid="stButton"] button,
+    .st-key-resource-tab-4 [data-testid="stButton"] button,
+    .st-key-resource-tab-5 [data-testid="stButton"] button {
+        width: 100% !important;
+        min-height: 76px !important;
+        height: 76px !important;
+        padding: 8px 7px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: normal !important;
+        line-height: 1.15 !important;
+        font-size: 15px !important;
+        font-weight: 900 !important;
+        letter-spacing: .1px !important;
+        text-align: center !important;
+        text-shadow: 0 1px 1px rgba(0,0,0,.22) !important;
+        border-width: 2px !important;
+        border-radius: 14px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,.28) !important;
+    }
+    .st-key-resource-tab-0 [data-testid="stButton"] button { color: #172033 !important; }
+    .st-key-resource-tab-1 [data-testid="stButton"] button,
+    .st-key-resource-tab-2 [data-testid="stButton"] button,
+    .st-key-resource-tab-3 [data-testid="stButton"] button,
+    .st-key-resource-tab-4 [data-testid="stButton"] button,
+    .st-key-resource-tab-5 [data-testid="stButton"] button { color: #FFFFFF !important; }
+
+    /* Unit 1–10: consistent button dimensions, bold white text and visible symbols. */
+    .st-key-practice-unit-card-1 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-2 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-3 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-4 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-5 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-6 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-7 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-8 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-9 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-10 [data-testid="stButton"] button {
+        width: 100% !important;
+        min-height: 66px !important;
+        height: 66px !important;
+        padding: 8px 6px !important;
+        color: #FFFFFF !important;
+        font-size: 16px !important;
+        font-weight: 900 !important;
+        letter-spacing: .2px !important;
+        text-align: center !important;
+        border-width: 2px !important;
+        border-radius: 14px !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,.35) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,.28) !important;
+    }
+
     @media (max-width: 900px) {
         .st-key-dashboard-card-study,
         .st-key-dashboard-card-practice,
@@ -448,7 +535,7 @@ def render_student_portal(db: Client):
     </div>
     """, unsafe_allow_html=True)
 
-    if True:  # Keep the three original main cards visible in every dashboard view.
+    if st.session_state.active_main_menu == "Landing":  # Show the three main cards only on the landing page.
         st.markdown(
             "<h2 style='color:#111827; margin:8px 0 20px; font-family:Times New Roman, Times, serif;'>My Academic Dashboard</h2>",
             unsafe_allow_html=True
@@ -632,8 +719,7 @@ def render_student_portal(db: Client):
                 tab_cols = st.columns(6, gap="small")
                 for idx, tab_name in enumerate(cat_list):
                     with tab_cols[idx]:
-                        container_key = "resource-tab-active" if st.session_state.active_resource_cat == tab_name else f"resource-tab-{idx}"
-                        with st.container(key=container_key):
+                        with st.container(key=f"resource-tab-{idx}"):
                             if st.button(tab_name, key=f"resource_tab_{idx}", use_container_width=True):
                                 st.session_state.active_resource_cat = tab_name
                                 st.rerun()
@@ -661,8 +747,9 @@ def render_student_portal(db: Client):
                 st.error(f"Error loading study resources: {e}")
 
         # =========================================================================
-        # SECTION 2: MOCK TEST ENGINE
-        # =========================================================================    elif st.session_state.active_main_menu == "Mock Test":
+    # SECTION 2: MOCK TEST ENGINE
+    # =========================================================================
+    elif st.session_state.active_main_menu == "Mock Test":
         with st.container(key="content-panel-practice"):
             if st.button("← Back to Dashboard", key="back_to_dashboard_practice"):
                 st.session_state.active_main_menu = "Landing"
@@ -682,16 +769,18 @@ def render_student_portal(db: Client):
                 for idx in range(5):
                     mod = UNIT_LIST[idx]
                     with unit_cols_1[idx]:
-                        if st.button(mod, key=f"practice_unit_{idx+1}", use_container_width=True):
-                            st.session_state.selected_test_module = mod
-                            st.rerun()
+                        with st.container(key=f"practice-unit-card-{idx+1}"):
+                            if st.button(f"🧩  {mod}", key=f"practice_unit_{idx+1}", use_container_width=True):
+                                st.session_state.selected_test_module = mod
+                                st.rerun()
                 unit_cols_2 = st.columns(5, gap="small")
                 for idx in range(5, 10):
                     mod = UNIT_LIST[idx]
                     with unit_cols_2[idx - 5]:
-                        if st.button(mod, key=f"practice_unit_{idx+1}", use_container_width=True):
-                            st.session_state.selected_test_module = mod
-                            st.rerun()
+                        with st.container(key=f"practice-unit-card-{idx+1}"):
+                            if st.button(f"🧩  {mod}", key=f"practice_unit_{idx+1}", use_container_width=True):
+                                st.session_state.selected_test_module = mod
+                                st.rerun()
                 with st.container(key="practice-full-row"):
                     if st.button("🏆 Full Paper Mock Test", key="practice_full_paper", use_container_width=True):
                         st.session_state.selected_test_module = module_options[-1]
@@ -984,8 +1073,9 @@ def render_student_portal(db: Client):
                     st.rerun()
 
         # =========================================================================
-        # SECTION 3: MY PERFORMANCE
-        # =========================================================================    elif st.session_state.active_main_menu == "My Performance":
+    # SECTION 3: MY PERFORMANCE
+    # =========================================================================
+    elif st.session_state.active_main_menu == "My Performance":
         with st.container(key="content-panel-performance"):
             if st.button("← Back to Dashboard", key="back_to_dashboard_performance"):
                 st.session_state.active_main_menu = "Landing"
