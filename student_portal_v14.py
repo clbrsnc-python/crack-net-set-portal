@@ -233,6 +233,29 @@ def render_student_portal(db: Client):
         color: #FFF8D6 !important;
         transform: translateY(-1px);
     }
+
+    /* Brighter second-tier Practice Set navigation, matching the colourful
+       Study Resources mini-tabs while leaving the landing cards untouched. */
+    [class*="st-key-practice_unit_"] [data-testid="stButton"] button,
+    [class*="st-key-practice_unit_"] button {
+        background: linear-gradient(135deg, #087F8C 0%, #075985 100%) !important;
+        border: 2px solid #55D6BE !important;
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+        text-shadow: 0 1px 1px rgba(0,0,0,.18);
+        min-height: 58px !important;
+    }
+    [class*="st-key-practice_unit_"]:nth-of-type(2n) [data-testid="stButton"] button,
+    [class*="st-key-practice_unit_"]:nth-of-type(2n) button {
+        background: linear-gradient(135deg, #6D28D9 0%, #4338CA 100%) !important;
+        border-color: #C4B5FD !important;
+    }
+    [class*="st-key-practice_unit_"] [data-testid="stButton"] button:hover,
+    [class*="st-key-practice_unit_"] button:hover {
+        filter: brightness(1.15) saturate(1.15) !important;
+        border-color: #FFE082 !important;
+        transform: translateY(-2px);
+    }
      .st-key-resource-tab-active [data-testid="stButton"] button,
      .st-key-resource-tab-active button {
         background: linear-gradient(135deg, #F6D77A 0%, #D9B66F 100%) !important;
@@ -886,7 +909,15 @@ def render_student_portal(db: Client):
                     st.write(f"**Correct Key:** {correct_key}")
                     exp = q.get("explanation")
                     if exp and get_clean_str(exp):
-                        st.info(f"💡 **Explanation / Notes:** {exp}")
+                        # Some imported answer explanations contain a literal
+                        # editor token instead of a rendered arrow. Normalize it
+                        # before displaying the explanation to students.
+                        exp_display = get_clean_str(exp)
+                        exp_display = re.sub(r"(?i)\?_?right[_ ]arrow\b", "→", exp_display)
+                        exp_display = exp_display.replace("\\rightarrow", "→").replace("\rightarrow", "→")
+                        exp_display = re.sub(r"[ \t]+([,.;:!?])", r"\1", exp_display)
+                        exp_display = re.sub(r"([,.;:!?])(?=[A-Za-z0-9])", r"\1 ", exp_display)
+                        st.info(f"💡 **Explanation / Notes:** {exp_display}")
 
             if st.button("🔄 Take Another Practice Test", type="primary"):
                 st.session_state.test_completed = False
