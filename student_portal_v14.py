@@ -131,24 +131,30 @@ def is_subject_match(q: dict, target_subject: str) -> bool:
     return False
 
 def is_unit_match(q: dict, u_idx: int) -> bool:
-    u_str = f"Unit {u_idx}"
-    u_str_dash = f"Unit-{u_idx}"
-    u_str_nodpace = f"Unit{u_idx}"
-    u_str_zero = f"Unit 0{u_idx}"
+    """Match questions to a unit using explicit unit metadata first."""
     val_unit = get_clean_str(q.get("unit"))
-    val_topic = get_clean_str(q.get("topic"))
-    val_unit_num = get_clean_str(q.get("unit_number")) or get_clean_str(q.get("unit_no")) or get_clean_str(q.get("unit_id"))
-    if val_unit_num == str(u_idx) or val_unit_num == f"0{u_idx}":
-        return True
-    text = (val_unit + " " + val_topic).strip().lower()
-    if not text:
+    val_unit_num = (
+        get_clean_str(q.get("unit_number"))
+        or get_clean_str(q.get("unit_no"))
+        or get_clean_str(q.get("unit_id"))
+    )
+    # An explicit unit label is authoritative; topic text cannot override it.
+    if val_unit:
+        match = re.search(r"\bunit\s*[-:_]*\s*0*(\d+)\b", val_unit, re.IGNORECASE)
+        if match:
+            return int(match.group(1)) == int(u_idx)
+        if val_unit.strip().isdigit():
+            return int(val_unit.strip()) == int(u_idx)
+    # Numeric unit metadata is the next most reliable source.
+    if val_unit_num:
+        match = re.search(r"\d+", val_unit_num)
+        if match:
+            return int(match.group(0)) == int(u_idx)
         return False
-    if val_unit.lower() in [u_str.lower(), u_str_dash.lower(), u_str_nodpace.lower(), u_str_zero.lower(), str(u_idx)] or val_topic.lower() in [u_str.lower(), u_str_dash.lower(), u_str_nodpace.lower(), u_str_zero.lower(), str(u_idx)]:
-        return True
-    pattern = rf"\bunit\s*[-:_]*\s*0*{u_idx}\b"
-    if re.search(pattern, text, re.IGNORECASE) or f"unit {u_idx}" in text or f"unit-{u_idx}" in text or f"unit{u_idx}" in text or f"unit 0{u_idx}" in text:
-        return True
-    return False
+    # Topic is a fallback only when the record has no usable unit metadata.
+    val_topic = get_clean_str(q.get("topic"))
+    topic_match = re.search(r"\bunit\s*[-:_]*\s*0*(\d+)\b", val_topic, re.IGNORECASE)
+    return bool(topic_match and int(topic_match.group(1)) == int(u_idx))
 
 def get_option_val(q: dict, opt_key: str) -> str:
     key = opt_key.lower()
@@ -589,6 +595,54 @@ def render_student_portal(db: Client):
         color: #F8FAFC !important;
     }
 
+
+    /* V20: explicit contrast for Start Practice and Detailed Question Review. */
+    .st-key-start-practice-action [data-testid="stButton"] button {
+        background: linear-gradient(135deg, #F6D77A, #D9A62E) !important;
+        color: #172033 !important;
+        -webkit-text-fill-color: #172033 !important;
+        border: 2px solid #FFE39A !important;
+        font-weight: 900 !important;
+        text-shadow: none !important;
+    }
+    .st-key-start-practice-action [data-testid="stButton"] button *,
+    .st-key-start-practice-action [data-testid="stButton"] button:hover *,
+    .st-key-start-practice-action [data-testid="stButton"] button:focus * {
+        color: #172033 !important;
+        -webkit-text-fill-color: #172033 !important;
+        opacity: 1 !important;
+    }
+    .st-key-start-practice-action [data-testid="stButton"] button:hover,
+    .st-key-start-practice-action [data-testid="stButton"] button:focus {
+        background: #FFE8A3 !important;
+        color: #111827 !important;
+        -webkit-text-fill-color: #111827 !important;
+    }
+    .st-key-content-panel-practice [data-testid="stExpander"] {
+        background: #102A43 !important;
+        border: 1px solid #D9B66F !important;
+        border-radius: 12px !important;
+        color: #F8FAFC !important;
+    }
+    .st-key-content-panel-practice [data-testid="stExpander"] summary,
+    .st-key-content-panel-practice [data-testid="stExpander"] summary *,
+    .st-key-content-panel-practice [data-testid="stExpander"] [data-testid="stMarkdownContainer"],
+    .st-key-content-panel-practice [data-testid="stExpander"] [data-testid="stMarkdownContainer"] *,
+    .st-key-content-panel-practice [data-testid="stExpander"] p,
+    .st-key-content-panel-practice [data-testid="stExpander"] li,
+    .st-key-content-panel-practice [data-testid="stExpander"] label {
+        color: #F8FAFC !important;
+        -webkit-text-fill-color: #F8FAFC !important;
+        opacity: 1 !important;
+    }
+    .st-key-content-panel-practice [data-testid="stExpander"] strong {
+        color: #FFE39A !important;
+        -webkit-text-fill-color: #FFE39A !important;
+    }
+    .st-key-content-panel-practice [data-testid="stExpander"] svg {
+        fill: #FFE39A !important;
+        color: #FFE39A !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -872,7 +926,9 @@ def render_student_portal(db: Client):
                 else:
                     st.write(f"📋 **Test Rules:** 25 Questions for **{selected_mod}**. Time limit: **30 Minutes**. 2 Marks per question (Total: 50 Marks). No negative marking.")
             
-                if st.button("🚀 Start Practice Test", use_container_width=True):
+                with st.container(key="start-practice-action"):
+                    start_practice_clicked = st.button("🚀 Start Practice Test", use_container_width=True)
+                if start_practice_clicked:
                     with st.spinner("Preparing question paper..."):
                         try:
                             q_res = db.table("questions").select("*").range(0, 4999).execute()
@@ -924,12 +980,9 @@ def render_student_portal(db: Client):
                                 else:
                                     u_pool = [q for q in subj_qs if q.get("unit") == selected_mod or q.get("topic") == selected_mod]
                                 
-                                if len(u_pool) < 25:
-                                    rem_pool = [q for q in subj_qs if id(q) not in [id(item) for item in u_pool]]
-                                    needed = 25 - len(u_pool)
-                                    if rem_pool:
-                                        u_pool.extend(random.sample(rem_pool, min(needed, len(rem_pool))))
-                                    
+                                # Never pad a unit test with questions from other units.
+                                # If fewer than 25 are available, use only the available
+                                # questions belonging to the selected unit.
                                 if u_pool:
                                     selected_qs = random.sample(u_pool, min(25, len(u_pool)))
                                 st.session_state.time_limit = 30 * 60
@@ -1004,8 +1057,8 @@ def render_student_portal(db: Client):
                 if "Full Paper" in st.session_state.test_module:
                     st.markdown(f"#### Question {curr_idx + 1} of {total_qs}")
                 else:
-                    unit_label = get_clean_str(q_data.get("unit")) or get_clean_str(q_data.get("topic")) or st.session_state.test_module
-                    st.markdown(f"#### Question {curr_idx + 1} of {total_qs} (`{unit_label}`)")
+                    # Keep the displayed label tied to the selected test module.
+                    st.markdown(f"#### Question {curr_idx + 1} of {total_qs} (`{st.session_state.test_module}`)")
             
                 q_text = q_data.get('question_text', 'Question text unavailable')
                 st.write(f"**{q_text}**")
@@ -1135,7 +1188,7 @@ def render_student_portal(db: Client):
                             # editor token instead of a rendered arrow. Normalize it
                             # before displaying the explanation to students.
                             exp_display = get_clean_str(exp)
-                            exp_display = re.sub(r"(?i)\?_?right[_ ]arrow\b", "→", exp_display)
+                            exp_display = re.sub(r"(?i)(?:\\?_?arrow_right|:arrow_right:|\\?_?right[_ ]arrow)", "→", exp_display)
                             exp_display = exp_display.replace("\\rightarrow", "→").replace("\rightarrow", "→")
                             exp_display = re.sub(r"[ \t]+([,.;:!?])", r"\1", exp_display)
                             exp_display = re.sub(r"([,.;:!?])(?=[A-Za-z0-9])", r"\1 ", exp_display)
