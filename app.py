@@ -1,24 +1,17 @@
 import streamlit as st
 from supabase import create_client, Client
 from auth_portal_v3 import render_auth_page
-from student_portal_v20 import render_student_portal
+from student_portal_v21 import render_student_portal
 from admin_portal_v3 import render_admin_portal
 
-# ==========================================
-# PAGE CONFIGURATION
-# ==========================================
 st.set_page_config(
     page_title="OmniStride",
     page_icon="🎯",
     layout="wide"
 )
 
-# ==========================================
-# SUPABASE CONNECTION SETUP
-# ==========================================
 @st.cache_resource
 def get_supabase_client() -> Client:
-    """Initialize and cache the Supabase client using Streamlit secrets."""
     try:
         url = st.secrets["supabase"]["url"]
         key = st.secrets["supabase"]["key"]
@@ -29,9 +22,6 @@ def get_supabase_client() -> Client:
 
 db = get_supabase_client()
 
-# ==========================================
-# SESSION STATE INITIALIZATION
-# ==========================================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user" not in st.session_state:
@@ -39,7 +29,6 @@ if "user" not in st.session_state:
 if "role" not in st.session_state:
     st.session_state.role = None
 
-# Practice Test Engine Session States
 if "test_active" not in st.session_state:
     st.session_state.test_active = False
 if "test_completed" not in st.session_state:
@@ -57,13 +46,9 @@ if "time_limit" not in st.session_state:
 if "test_module" not in st.session_state:
     st.session_state.test_module = ""
 
-# ==========================================
-# MAIN APPLICATION ROUTER
-# ==========================================
 if not st.session_state.logged_in:
     render_auth_page(db)
 else:
-    # Sidebar Navigation & Attribution
     st.sidebar.title(f"👋 Welcome, {st.session_state.user.get('name', 'User')}")
     st.sidebar.write(f"**Role:** {st.session_state.role.upper()}")
     st.sidebar.write(f"**Subject:** {st.session_state.user.get('subject', 'N/A')}")
@@ -83,7 +68,6 @@ else:
         "Copyright 2026 All rights reserved"
     )
 
-    # Route based on role
     if st.session_state.role == "admin":
         render_admin_portal(db)
     else:
