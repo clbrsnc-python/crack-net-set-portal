@@ -1,7 +1,7 @@
 import streamlit as st
 from supabase import create_client, Client
 from auth_portal_v3 import render_auth_page
-from student_portal_v19 import render_student_portal
+from student_portal_v20 import render_student_portal
 from admin_portal_v3 import render_admin_portal
 
 # ==========================================
