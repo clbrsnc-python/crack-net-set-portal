@@ -174,7 +174,7 @@ def render_footer():
 
 def render_student_portal(db: Client):
     if "active_main_menu" not in st.session_state:
-        st.session_state.active_main_menu = "Study Resources"
+        st.session_state.active_main_menu = "Landing"
     if "active_resource_cat" not in st.session_state:
         st.session_state.active_resource_cat = "📋 Syllabus"
 
@@ -211,6 +211,40 @@ def render_student_portal(db: Client):
     .user-badge {
         background: rgba(255,255,255,.12); padding: 10px 18px;
         border-radius: 10px; border: 1px solid rgba(255,215,0,.5); text-align: right;
+    }
+
+    /* Visible mini-tab navigation: native Streamlit buttons, no dropdowns */
+    .resource-tab-row [data-testid="stButton"] button,
+    .practice-unit-row [data-testid="stButton"] button {
+        border: 2px solid #E7C56B !important;
+        border-radius: 12px !important;
+        background: rgba(9, 33, 105, 0.92) !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        min-height: 54px !important;
+        padding: 8px 10px !important;
+        box-shadow: 0 3px 9px rgba(15, 23, 42, .18) !important;
+        transition: all .15s ease !important;
+    }
+    .resource-tab-row [data-testid="stButton"] button:hover,
+    .practice-unit-row [data-testid="stButton"] button:hover {
+        border-color: #FFD700 !important;
+        background: #12398F !important;
+        color: #FFF8D6 !important;
+        transform: translateY(-1px);
+    }
+     .st-key-resource-tab-active [data-testid="stButton"] button,
+     .st-key-resource-tab-active button {
+        background: linear-gradient(135deg, #F6D77A 0%, #D9B66F 100%) !important;
+        color: #092169 !important;
+        border-color: #FFD700 !important;
+        box-shadow: 0 4px 12px rgba(231, 197, 107, .35) !important;
+    }
+     .st-key-practice-full-row [data-testid="stButton"] button,
+     .st-key-practice-full-row button {
+        background: linear-gradient(135deg, #6F3CC3 0%, #5B21B6 100%) !important;
+        border-color: #F6D77A !important;
+        color: #FFFFFF !important;
     }
 
     /* Three dashboard cards: equal dimensions and purposeful, vibrant colors */
@@ -334,111 +368,113 @@ def render_student_portal(db: Client):
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown(
-        "<h2 style='color:#111827; margin:8px 0 20px; font-family:Times New Roman, Times, serif;'>My Academic Dashboard</h2>",
-        unsafe_allow_html=True
-    )
+    if st.session_state.active_main_menu == "Landing":
+        st.markdown(
+            "<h2 style='color:#111827; margin:8px 0 20px; font-family:Times New Roman, Times, serif;'>My Academic Dashboard</h2>",
+            unsafe_allow_html=True
+        )
 
-    card1, card2, card3 = st.columns([1, 1, 1], gap="large")
+        card1, card2, card3 = st.columns([1, 1, 1], gap="large")
 
-    with card1:
-        with st.container(key="dashboard-card-study"):
-            st.markdown(
-                '<div class="dashboard-card-icon"><svg viewBox="0 0 64 64" aria-hidden="true">'
-                '<path d="M12 15 31 8l21 7-20 8-20-8Z"/><path d="M12 15v10l20 8 20-8V15"/>'
-                '<path d="m12 25-4 7 23 9 23-9-3-7"/><path d="m8 32v9l23 9 23-9v-9"/>'
-                '<path d="m8 41v8l23 8 23-8v-8"/></svg></div>'
-                '<div class="dashboard-card-heading">Study Resources</div>',
-                unsafe_allow_html=True
-            )
-            st.markdown(
-                '<div style="color:#EAF2FF; text-align:center; line-height:1.5; margin:8px 0 24px;">'
-                'Explore syllabus, learning materials, notes, previous-year questions and more.'
-                '</div>',
-                unsafe_allow_html=True
-            )
-            st.write("")
-            if st.button("Explore Resources  →", key="dashboard_open_resources", use_container_width=True):
-                st.session_state.active_main_menu = "Study Resources"
-                st.rerun()
+        with card1:
+            with st.container(key="dashboard-card-study"):
+                st.markdown(
+                    '<div class="dashboard-card-icon"><svg viewBox="0 0 64 64" aria-hidden="true">'
+                    '<path d="M12 15 31 8l21 7-20 8-20-8Z"/><path d="M12 15v10l20 8 20-8V15"/>'
+                    '<path d="m12 25-4 7 23 9 23-9-3-7"/><path d="m8 32v9l23 9 23-9v-9"/>'
+                    '<path d="m8 41v8l23 8 23-8v-8"/></svg></div>'
+                    '<div class="dashboard-card-heading">Study Resources</div>',
+                    unsafe_allow_html=True
+                )
+                st.markdown(
+                    '<div style="color:#EAF2FF; text-align:center; line-height:1.5; margin:8px 0 24px;">'
+                    'Explore syllabus, learning materials, notes, previous-year questions and more.'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
+                st.write("")
+                if st.button("Explore Resources  →", key="dashboard_open_resources", use_container_width=True):
+                    st.session_state.active_main_menu = "Study Resources"
+                    st.rerun()
 
-    with card2:
-        with st.container(key="dashboard-card-practice"):
-            st.markdown(
-                '<div class="dashboard-card-icon"><svg viewBox="0 0 64 64" aria-hidden="true">'
-                '<rect x="13" y="11" width="36" height="45" rx="3"/>'
-                '<path d="M24 11V7h14v4M21 23h19M21 31h12M21 39h10"/>'
-                '<path d="m39 43 12-12 5 5-12 12-7 2 2-7Z"/>'
-                '<path d="m48 34 5 5"/></svg></div>'
-                '<div class="dashboard-card-heading">Practice Set Engine</div>',
-                unsafe_allow_html=True
-            )
-            st.markdown(
-                '<div style="color:#E6FFFA; text-align:center; line-height:1.5; margin:8px 0 24px;">'
-                'Strengthen your preparation with unit-wise tests and full-paper mock examinations.'
-                '</div>',
-                unsafe_allow_html=True
-            )
-            st.write("")
-            if st.button("Open Practice Engine  →", key="dashboard_open_practice", use_container_width=True):
-                st.session_state.active_main_menu = "Mock Test"
-                st.rerun()
+        with card2:
+            with st.container(key="dashboard-card-practice"):
+                st.markdown(
+                    '<div class="dashboard-card-icon"><svg viewBox="0 0 64 64" aria-hidden="true">'
+                    '<rect x="13" y="11" width="36" height="45" rx="3"/>'
+                    '<path d="M24 11V7h14v4M21 23h19M21 31h12M21 39h10"/>'
+                    '<path d="m39 43 12-12 5 5-12 12-7 2 2-7Z"/>'
+                    '<path d="m48 34 5 5"/></svg></div>'
+                    '<div class="dashboard-card-heading">Practice Set Engine</div>',
+                    unsafe_allow_html=True
+                )
+                st.markdown(
+                    '<div style="color:#E6FFFA; text-align:center; line-height:1.5; margin:8px 0 24px;">'
+                    'Strengthen your preparation with unit-wise tests and full-paper mock examinations.'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
+                st.write("")
+                if st.button("Open Practice Engine  →", key="dashboard_open_practice", use_container_width=True):
+                    st.session_state.active_main_menu = "Mock Test"
+                    st.rerun()
 
-    # Pull the student's real attempt history for the dashboard summary.
-    dashboard_attempts = []
-    dashboard_avg = 0.0
-    dashboard_best = 0.0
-    dashboard_count = 0
-    try:
-        dashboard_email = st.session_state.user.get("email")
-        if dashboard_email:
-            dashboard_result = (
-                db.table("quiz_attempts").select("*")
-                .eq("student_email", dashboard_email)
-                .order("attempted_at", desc=True).execute()
-            )
-            dashboard_attempts = dashboard_result.data if dashboard_result.data else []
-        if dashboard_attempts:
-            dashboard_count = len(dashboard_attempts)
-            dashboard_avg = sum(float(a.get("percentage", 0) or 0) for a in dashboard_attempts) / dashboard_count
-            dashboard_best = max(float(a.get("percentage", 0) or 0) for a in dashboard_attempts)
-    except Exception:
-        # Keep the dashboard usable even if the performance summary cannot load.
+        # Pull the student's real attempt history for the dashboard summary.
         dashboard_attempts = []
+        dashboard_avg = 0.0
+        dashboard_best = 0.0
+        dashboard_count = 0
+        try:
+            dashboard_email = st.session_state.user.get("email")
+            if dashboard_email:
+                dashboard_result = (
+                    db.table("quiz_attempts").select("*")
+                    .eq("student_email", dashboard_email)
+                    .order("attempted_at", desc=True).execute()
+                )
+                dashboard_attempts = dashboard_result.data if dashboard_result.data else []
+            if dashboard_attempts:
+                dashboard_count = len(dashboard_attempts)
+                dashboard_avg = sum(float(a.get("percentage", 0) or 0) for a in dashboard_attempts) / dashboard_count
+                dashboard_best = max(float(a.get("percentage", 0) or 0) for a in dashboard_attempts)
+        except Exception:
+            # Keep the dashboard usable even if the performance summary cannot load.
+            dashboard_attempts = []
 
-    with card3:
-        with st.container(key="dashboard-card-performance"):
-            st.markdown(
-                '<div class="dashboard-card-icon"><svg viewBox="0 0 64 64" aria-hidden="true">'
-                '<path d="M9 54h47M13 49V37h9v12M29 49V27h9v22M45 49V17h9v32"/>'
-                '<path d="m12 29 14-13 10 7L54 7"/>'
-                '<path d="M45 7h9v9"/></svg></div>'
-                '<div class="dashboard-card-heading">My Performance</div>',
-                unsafe_allow_html=True
-            )
-            if dashboard_count:
-                avg_display = max(0, min(100, dashboard_avg))
+        with card3:
+            with st.container(key="dashboard-card-performance"):
                 st.markdown(
-                    f'<div class="performance-number">{avg_display:.0f}%</div>'
-                    '<div class="performance-caption">Average score across your attempts</div>'
-                    f'<div class="performance-track"><div class="performance-fill" style="width:{avg_display:.1f}%"></div></div>'
-                    f'<div class="performance-stat"><span>Tests Taken</span><strong>{dashboard_count}</strong></div>'
-                    f'<div class="performance-stat"><span>Best Score</span><strong>{dashboard_best:.1f}%</strong></div>',
+                    '<div class="dashboard-card-icon"><svg viewBox="0 0 64 64" aria-hidden="true">'
+                    '<path d="M9 54h47M13 49V37h9v12M29 49V27h9v22M45 49V17h9v32"/>'
+                    '<path d="m12 29 14-13 10 7L54 7"/>'
+                    '<path d="M45 7h9v9"/></svg></div>'
+                    '<div class="dashboard-card-heading">My Performance</div>',
                     unsafe_allow_html=True
                 )
-            else:
-                st.markdown(
-                    '<div class="performance-number">—</div>'
-                    '<div class="performance-caption">Your progress will appear here</div>'
-                    '<div style="color:#F0E5FF; text-align:center; margin:26px 0;">Take your first practice test to start tracking your performance.</div>',
-                    unsafe_allow_html=True
-                )
-            st.write("")
-            if st.button("View Detailed Performance  →", key="dashboard_open_performance", use_container_width=True):
-                st.session_state.active_main_menu = "My Performance"
-                st.rerun()
+                if dashboard_count:
+                    avg_display = max(0, min(100, dashboard_avg))
+                    st.markdown(
+                        f'<div class="performance-number">{avg_display:.0f}%</div>'
+                        '<div class="performance-caption">Average score across your attempts</div>'
+                        f'<div class="performance-track"><div class="performance-fill" style="width:{avg_display:.1f}%"></div></div>'
+                        f'<div class="performance-stat"><span>Tests Taken</span><strong>{dashboard_count}</strong></div>'
+                        f'<div class="performance-stat"><span>Best Score</span><strong>{dashboard_best:.1f}%</strong></div>',
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.markdown(
+                        '<div class="performance-number">—</div>'
+                        '<div class="performance-caption">Your progress will appear here</div>'
+                        '<div style="color:#F0E5FF; text-align:center; margin:26px 0;">Take your first practice test to start tracking your performance.</div>',
+                        unsafe_allow_html=True
+                    )
+                st.write("")
+                if st.button("View Detailed Performance  →", key="dashboard_open_performance", use_container_width=True):
+                    st.session_state.active_main_menu = "My Performance"
+                    st.rerun()
 
-    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
 
     # Single Unified Resource Card Helper
     def render_single_unified_card(item):
@@ -483,6 +519,9 @@ def render_student_portal(db: Client):
     # SECTION 1: STUDY RESOURCES
     # =========================================================================
     if st.session_state.active_main_menu == "Study Resources":
+        if st.button("← Back to Dashboard", key="back_to_dashboard_resources"):
+            st.session_state.active_main_menu = "Landing"
+            st.rerun()
         st.subheader("📚 Study Resources")
         st.info(f"🎯 **Target Stream:** Displaying study materials for **{user_subject}** (including General Paper 1).")
         
@@ -496,22 +535,30 @@ def render_student_portal(db: Client):
             
             categories = {
                 "📋 Syllabus": [i for i in relevant_items if i.get("category") == "Syllabus"],
-                "📖 Learning Resources & Notes": [i for i in relevant_items if i.get("category") in ["Learning Resources", "Notes"]],
+                "📖 Learning Resources": [i for i in relevant_items if i.get("category") in ["Learning Resources", "Notes"]],
                 "📝 PYQs": [i for i in relevant_items if i.get("category") == "PYQs"],
                 "🎬 Video Lectures": [i for i in relevant_items if i.get("category") == "Video Lectures"],
                 "🔗 Useful Links": [i for i in relevant_items if i.get("category") == "Useful Links"]
             }
             
-            # Smooth Dropdown Selector for Submenu Category
-            cat_list = ["📋 Syllabus", "📖 Learning Resources & Notes", "📝 PYQs", "🎬 Video Lectures", "🔗 Useful Links", "📁 View All Items"]
-            
-            sel_cat = st.selectbox(
-                "📂 Select Study Category Dropdown:",
-                options=cat_list,
-                index=cat_list.index(st.session_state.active_resource_cat) if st.session_state.active_resource_cat in cat_list else 0
-            )
-            st.session_state.active_resource_cat = sel_cat
+            # Visible mini-tab navigation: all study options are immediately available.
+            # The underlying category names and database filtering remain unchanged.
+            cat_list = ["📋 Syllabus", "📖 Learning Resources", "📝 PYQs", "🎬 Video Lectures", "🔗 Useful Links", "📁 View All Items"]
+            if st.session_state.active_resource_cat not in cat_list:
+                st.session_state.active_resource_cat = cat_list[0]
 
+            st.markdown("<div class='resource-tab-row'>", unsafe_allow_html=True)
+            tab_cols = st.columns(6, gap="small")
+            for idx, tab_name in enumerate(cat_list):
+                with tab_cols[idx]:
+                    container_key = "resource-tab-active" if st.session_state.active_resource_cat == tab_name else f"resource-tab-{idx}"
+                    with st.container(key=container_key):
+                        if st.button(tab_name, key=f"resource_tab_{idx}", use_container_width=True):
+                            st.session_state.active_resource_cat = tab_name
+                            st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            sel_cat = st.session_state.active_resource_cat
             st.markdown("---")
             st.markdown(f"<h4 style='color: #092169; font-family: Times New Roman, Times, serif;'>Viewing Category: {sel_cat}</h4>", unsafe_allow_html=True)
 
@@ -536,17 +583,43 @@ def render_student_portal(db: Client):
     # SECTION 2: MOCK TEST ENGINE
     # =========================================================================
     elif st.session_state.active_main_menu == "Mock Test":
+        if st.button("← Back to Dashboard", key="back_to_dashboard_practice"):
+            st.session_state.active_main_menu = "Landing"
+            st.rerun()
         st.subheader("📝 Mock Test Engine")
         
         if not st.session_state.test_active and not st.session_state.test_completed:
             st.info(f"🎯 **Target Practice:** Select a Unit Test or Full Paper Mock Test for **{user_subject}**.")
             
             module_options = UNIT_LIST + ["🏆 Full Paper Mock Test (100 Questions - 120 Mins - 200 Marks)"]
-            selected_mod = st.selectbox(
-                "🎯 Select Test Module Dropdown:",
-                module_options,
-                index=module_options.index(st.session_state.get("selected_test_module", module_options[0]))
-                if st.session_state.get("selected_test_module", module_options[0]) in module_options else 0
+            if st.session_state.get("selected_test_module") not in module_options:
+                st.session_state.selected_test_module = module_options[0]
+
+            # Visible unit navigation: Unit 1–10 and Full Paper are directly clickable.
+            st.markdown("<div class='practice-unit-row'>", unsafe_allow_html=True)
+            unit_cols_1 = st.columns(5, gap="small")
+            for idx in range(5):
+                mod = UNIT_LIST[idx]
+                with unit_cols_1[idx]:
+                    if st.button(mod, key=f"practice_unit_{idx+1}", use_container_width=True):
+                        st.session_state.selected_test_module = mod
+                        st.rerun()
+            unit_cols_2 = st.columns(5, gap="small")
+            for idx in range(5, 10):
+                mod = UNIT_LIST[idx]
+                with unit_cols_2[idx - 5]:
+                    if st.button(mod, key=f"practice_unit_{idx+1}", use_container_width=True):
+                        st.session_state.selected_test_module = mod
+                        st.rerun()
+            with st.container(key="practice-full-row"):
+                if st.button("🏆 Full Paper Mock Test", key="practice_full_paper", use_container_width=True):
+                    st.session_state.selected_test_module = module_options[-1]
+                    st.rerun()
+
+            selected_mod = st.session_state.selected_test_module
+            st.markdown(
+                f"<div style='margin:10px 0 12px; padding:10px 14px; border-left:4px solid #E7C56B; background:rgba(255,255,255,.07); border-radius:8px;'><strong>Selected:</strong> {selected_mod}</div>",
+                unsafe_allow_html=True
             )
             
             if "Full Paper" in selected_mod:
@@ -825,6 +898,9 @@ def render_student_portal(db: Client):
     # SECTION 3: MY PERFORMANCE
     # =========================================================================
     elif st.session_state.active_main_menu == "My Performance":
+        if st.button("← Back to Dashboard", key="back_to_dashboard_performance"):
+            st.session_state.active_main_menu = "Landing"
+            st.rerun()
         st.subheader("📊 My Performance & Attempt History")
         student_email = st.session_state.user.get("email")
         
