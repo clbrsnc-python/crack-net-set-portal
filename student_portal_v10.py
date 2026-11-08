@@ -362,8 +362,7 @@ def render_student_portal(db: Client):
             <div>
                 <h1 class="omni-title">OmniStride</h1>
                 <div class="omni-tagline">NET SET Go...to the Goal 🎯</div>
-                <div class="omni-subtitle">My Academic Dashboard</div>
-            </div>
+                          </div>
         </div>
         <div class="user-badge">
             <div style="font-size: 0.88rem; color: #E0E7FF;">Welcome, Scholar</div>
@@ -374,7 +373,7 @@ def render_student_portal(db: Client):
     """, unsafe_allow_html=True)
 
     # 3 TOP-LEVEL FLASHCARD NAVIGATION BUTTONS
-    st.markdown("<h3 style='color: #092169; margin-bottom: 12px;'>🎴 Main Navigation Flashcards</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #092169; margin-bottom: 12px;'>🎴 My Academic Dashboard</h3>", unsafe_allow_html=True)
 
     m_col1, m_col2, m_col3 = st.columns(3)
 
