@@ -356,6 +356,63 @@ def render_student_portal(db: Client):
         height: 100%; background: #D9B66F; border-radius: 10px;
     }
 
+    /* Selected second-tier views: use the same navy, gold and luminous gradients as the main cards. */
+    .st-key-content-panel-study,
+    .st-key-content-panel-practice,
+    .st-key-content-panel-performance {
+        background: linear-gradient(145deg, rgba(12, 39, 69, .98), rgba(5, 20, 38, .98)) !important;
+        border: 2px solid #E7C56B !important;
+        border-radius: 20px !important;
+        padding: 22px 22px 24px !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,.28), 0 0 14px rgba(231,197,107,.16) !important;
+        margin: 8px 0 24px !important;
+    }
+    .st-key-content-panel-study h2, .st-key-content-panel-study h3,
+    .st-key-content-panel-practice h2, .st-key-content-panel-practice h3,
+    .st-key-content-panel-performance h2, .st-key-content-panel-performance h3 {
+        color: #F6D77A !important;
+        font-family: Georgia, 'Times New Roman', serif !important;
+        font-weight: 800 !important;
+    }
+    .st-key-content-panel-study [data-testid="stAlert"],
+    .st-key-content-panel-practice [data-testid="stAlert"],
+    .st-key-content-panel-performance [data-testid="stAlert"] {
+        border-radius: 12px !important;
+    }
+    /* Six Study Resources tabs: distinct bright jewel tones, gold active state. */
+    .st-key-resource-tab-0 [data-testid="stButton"] button { background:linear-gradient(135deg,#F6D77A,#D99A19)!important;color:#172033!important;border-color:#FFE39A!important; }
+    .st-key-resource-tab-1 [data-testid="stButton"] button { background:linear-gradient(135deg,#2563EB,#123A83)!important;border-color:#8EC5FF!important; }
+    .st-key-resource-tab-2 [data-testid="stButton"] button { background:linear-gradient(135deg,#7C3AED,#4C1D95)!important;border-color:#C4B5FD!important; }
+    .st-key-resource-tab-3 [data-testid="stButton"] button { background:linear-gradient(135deg,#0891B2,#155E75)!important;border-color:#67E8F9!important; }
+    .st-key-resource-tab-4 [data-testid="stButton"] button { background:linear-gradient(135deg,#0F9F78,#065F46)!important;border-color:#6EE7B7!important; }
+    .st-key-resource-tab-5 [data-testid="stButton"] button { background:linear-gradient(135deg,#475569,#1E293B)!important;border-color:#CBD5E1!important; }
+    .st-key-resource-tab-0 [data-testid="stButton"] button,
+    .st-key-resource-tab-1 [data-testid="stButton"] button,
+    .st-key-resource-tab-2 [data-testid="stButton"] button,
+    .st-key-resource-tab-3 [data-testid="stButton"] button,
+    .st-key-resource-tab-4 [data-testid="stButton"] button,
+    .st-key-resource-tab-5 [data-testid="stButton"] button {
+        min-height:68px!important; border-width:2px!important; border-radius:14px!important;
+        font-weight:800!important; box-shadow:0 4px 12px rgba(0,0,0,.24)!important;
+    }
+    .st-key-resource-tab-0 [data-testid="stButton"] button:hover,
+    .st-key-resource-tab-1 [data-testid="stButton"] button:hover,
+    .st-key-resource-tab-2 [data-testid="stButton"] button:hover,
+    .st-key-resource-tab-3 [data-testid="stButton"] button:hover,
+    .st-key-resource-tab-4 [data-testid="stButton"] button:hover,
+    .st-key-resource-tab-5 [data-testid="stButton"] button:hover { filter:brightness(1.16)!important; transform:translateY(-2px); }
+    /* Practice units echo the blue, teal and violet gradients of the main cards. */
+    .st-key-practice-unit-card-1 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-4 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-7 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-10 [data-testid="stButton"] button { background:linear-gradient(135deg,#2563EB,#123A83)!important;border-color:#8EC5FF!important; }
+    .st-key-practice-unit-card-2 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-5 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-8 [data-testid="stButton"] button { background:linear-gradient(135deg,#0F9F78,#065F46)!important;border-color:#6EE7B7!important; }
+    .st-key-practice-unit-card-3 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-6 [data-testid="stButton"] button,
+    .st-key-practice-unit-card-9 [data-testid="stButton"] button { background:linear-gradient(135deg,#7C3AED,#4C1D95)!important;border-color:#C4B5FD!important; }
+
     @media (max-width: 900px) {
         .st-key-dashboard-card-study,
         .st-key-dashboard-card-practice,
@@ -391,7 +448,7 @@ def render_student_portal(db: Client):
     </div>
     """, unsafe_allow_html=True)
 
-    if st.session_state.active_main_menu == "Landing":
+    if True:  # Keep the three original main cards visible in every dashboard view.
         st.markdown(
             "<h2 style='color:#111827; margin:8px 0 20px; font-family:Times New Roman, Times, serif;'>My Academic Dashboard</h2>",
             unsafe_allow_html=True
@@ -542,286 +599,206 @@ def render_student_portal(db: Client):
     # SECTION 1: STUDY RESOURCES
     # =========================================================================
     if st.session_state.active_main_menu == "Study Resources":
-        if st.button("← Back to Dashboard", key="back_to_dashboard_resources"):
-            st.session_state.active_main_menu = "Landing"
-            st.rerun()
-        st.subheader("📚 Study Resources")
-        st.info(f"🎯 **Target Stream:** Displaying study materials for **{user_subject}** (including General Paper 1).")
-        
-        try:
-            res = db.table("content").select("*").execute()
-            all_items = res.data if res.data else []
-            relevant_items = [
-                i for i in all_items 
-                if i.get("subject") == user_subject or "Paper 1" in str(i.get("subject")) or "General" in str(i.get("subject"))
-            ]
-            
-            categories = {
-                "📋 Syllabus": [i for i in relevant_items if i.get("category") == "Syllabus"],
-                "📖 Learning Resources": [i for i in relevant_items if i.get("category") in ["Learning Resources", "Notes"]],
-                "📝 PYQs": [i for i in relevant_items if i.get("category") == "PYQs"],
-                "🎬 Video Lectures": [i for i in relevant_items if i.get("category") == "Video Lectures"],
-                "🔗 Useful Links": [i for i in relevant_items if i.get("category") == "Useful Links"]
-            }
-            
-            # Visible mini-tab navigation: all study options are immediately available.
-            # The underlying category names and database filtering remain unchanged.
-            cat_list = ["📋 Syllabus", "📖 Learning Resources", "📝 PYQs", "🎬 Video Lectures", "🔗 Useful Links", "📁 View All Items"]
-            if st.session_state.active_resource_cat not in cat_list:
-                st.session_state.active_resource_cat = cat_list[0]
-
-            st.markdown("<div class='resource-tab-row'>", unsafe_allow_html=True)
-            tab_cols = st.columns(6, gap="small")
-            for idx, tab_name in enumerate(cat_list):
-                with tab_cols[idx]:
-                    container_key = "resource-tab-active" if st.session_state.active_resource_cat == tab_name else f"resource-tab-{idx}"
-                    with st.container(key=container_key):
-                        if st.button(tab_name, key=f"resource_tab_{idx}", use_container_width=True):
-                            st.session_state.active_resource_cat = tab_name
-                            st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-
-            sel_cat = st.session_state.active_resource_cat
-            st.markdown("---")
-            st.markdown(f"<h4 style='color: #092169; font-family: Times New Roman, Times, serif;'>Viewing Category: {sel_cat}</h4>", unsafe_allow_html=True)
-
-            if sel_cat == "📁 View All Items":
-                if relevant_items:
-                    for item in relevant_items:
-                        render_single_unified_card(item)
-                else:
-                    st.info(f"No study materials available yet for **{user_subject}**.")
-            else:
-                target_items = categories.get(sel_cat, [])
-                if target_items:
-                    for item in target_items:
-                        render_single_unified_card(item)
-                else:
-                    st.info(f"No materials published yet under **{sel_cat}** for **{user_subject}**.")
-
-        except Exception as e:
-            st.error(f"Error loading study resources: {e}")
-
-    # =========================================================================
-    # SECTION 2: MOCK TEST ENGINE
-    # =========================================================================
-    elif st.session_state.active_main_menu == "Mock Test":
-        if st.button("← Back to Dashboard", key="back_to_dashboard_practice"):
-            st.session_state.active_main_menu = "Landing"
-            st.rerun()
-        st.subheader("📝 Mock Test Engine")
-        
-        if not st.session_state.test_active and not st.session_state.test_completed:
-            st.info(f"🎯 **Target Practice:** Select a Unit Test or Full Paper Mock Test for **{user_subject}**.")
-            
-            module_options = UNIT_LIST + ["🏆 Full Paper Mock Test (100 Questions - 120 Mins - 200 Marks)"]
-            if st.session_state.get("selected_test_module") not in module_options:
-                st.session_state.selected_test_module = module_options[0]
-
-            # Visible unit navigation: Unit 1–10 and Full Paper are directly clickable.
-            st.markdown("<div class='practice-unit-row'>", unsafe_allow_html=True)
-            unit_cols_1 = st.columns(5, gap="small")
-            for idx in range(5):
-                mod = UNIT_LIST[idx]
-                with unit_cols_1[idx]:
-                    if st.button(mod, key=f"practice_unit_{idx+1}", use_container_width=True):
-                        st.session_state.selected_test_module = mod
-                        st.rerun()
-            unit_cols_2 = st.columns(5, gap="small")
-            for idx in range(5, 10):
-                mod = UNIT_LIST[idx]
-                with unit_cols_2[idx - 5]:
-                    if st.button(mod, key=f"practice_unit_{idx+1}", use_container_width=True):
-                        st.session_state.selected_test_module = mod
-                        st.rerun()
-            with st.container(key="practice-full-row"):
-                if st.button("🏆 Full Paper Mock Test", key="practice_full_paper", use_container_width=True):
-                    st.session_state.selected_test_module = module_options[-1]
-                    st.rerun()
-
-            selected_mod = st.session_state.selected_test_module
-            st.markdown(
-                f"<div style='margin:10px 0 12px; padding:10px 14px; border-left:4px solid #E7C56B; background:rgba(255,255,255,.07); border-radius:8px;'><strong>Selected:</strong> {selected_mod}</div>",
-                unsafe_allow_html=True
-            )
-            
-            if "Full Paper" in selected_mod:
-                st.write("📋 **Test Rules:** 100 Questions (10 Questions drawn from each of the 10 Units). Time limit: **120 Minutes**. 2 Marks per question (Total: 200 Marks). No negative marking.")
-            else:
-                st.write(f"📋 **Test Rules:** 25 Questions for **{selected_mod}**. Time limit: **30 Minutes**. 2 Marks per question (Total: 50 Marks). No negative marking.")
-            
-            if st.button("🚀 Start Practice Test", use_container_width=True):
-                with st.spinner("Preparing question paper..."):
-                    try:
-                        q_res = db.table("questions").select("*").range(0, 4999).execute()
-                        all_qs = q_res.data if q_res.data else []
-                        subj_qs = [q for q in all_qs if is_subject_match(q, user_subject)]
-                        if not subj_qs:
-                            subj_qs = all_qs
-
-                        selected_qs = []
-                        if "Full Paper" in selected_mod:
-                            used_ids = set()
-                            unit_selected = []
-                            
-                            for u_idx in range(1, 11):
-                                u_pool = [q for q in subj_qs if is_unit_match(q, u_idx) and id(q) not in used_ids]
-                                if len(u_pool) >= 10:
-                                    chosen = random.sample(u_pool, 10)
-                                else:
-                                    chosen = u_pool
-                                for q in chosen:
-                                    used_ids.add(id(q))
-                                    unit_selected.append(q)
-                                    
-                            selected_qs.extend(unit_selected)
-                            
-                            if len(selected_qs) < 100:
-                                needed = 100 - len(selected_qs)
-                                rem_subj = [q for q in subj_qs if id(q) not in used_ids]
-                                if rem_subj:
-                                    add_from_subj = random.sample(rem_subj, min(needed, len(rem_subj)))
-                                    for q in add_from_subj:
-                                        used_ids.add(id(q))
-                                        selected_qs.append(q)
-                                        
-                            if len(selected_qs) < 100:
-                                needed = 100 - len(selected_qs)
-                                rem_all = [q for q in all_qs if id(q) not in used_ids]
-                                if rem_all:
-                                    add_from_all = random.sample(rem_all, min(needed, len(rem_all)))
-                                    selected_qs.extend(add_from_all)
-                                    
-                            random.shuffle(selected_qs)
-                            st.session_state.time_limit = 120 * 60
-                        else:
-                            u_match = re.search(r'\d+', selected_mod)
-                            u_idx = int(u_match.group(0)) if u_match else 0
-                            if u_idx > 0:
-                                u_pool = [q for q in subj_qs if is_unit_match(q, u_idx)]
-                            else:
-                                u_pool = [q for q in subj_qs if q.get("unit") == selected_mod or q.get("topic") == selected_mod]
-                                
-                            if len(u_pool) < 25:
-                                rem_pool = [q for q in subj_qs if id(q) not in [id(item) for item in u_pool]]
-                                needed = 25 - len(u_pool)
-                                if rem_pool:
-                                    u_pool.extend(random.sample(rem_pool, min(needed, len(rem_pool))))
-                                    
-                            if u_pool:
-                                selected_qs = random.sample(u_pool, min(25, len(u_pool)))
-                            st.session_state.time_limit = 30 * 60
-                        
-                        if selected_qs:
-                            st.session_state.test_questions = selected_qs
-                            st.session_state.start_time = time.time()
-                            st.session_state.user_answers = {}
-                            st.session_state.current_q_idx = 0
-                            st.session_state.test_module = selected_mod
-                            st.session_state.test_active = True
-                            st.rerun()
-                        else:
-                            st.warning(f"No questions available in database for **{selected_mod}**.")
-                    except Exception as e:
-                        st.error(f"Error initializing test: {e}")
-
-        elif st.session_state.test_active:
-            elapsed = time.time() - st.session_state.start_time
-            remaining = max(0, int(st.session_state.time_limit - elapsed))
-            
-            mins, secs = divmod(remaining, 60)
-            hrs, mins = divmod(mins, 60)
-            time_str = f"{hrs:02d}:{mins:02d}:{secs:02d}"
-            
-            header_col, timer_col = st.columns([3, 1])
-            with header_col:
-                st.markdown(f"### 📝 {st.session_state.test_module}")
-            with timer_col:
-                st.metric("⏳ Time Remaining", time_str)
-            
-            if remaining <= 0:
-                st.warning("⏱️ Time is up! Auto-submitting your test...")
-                total_q = len(st.session_state.test_questions)
-                correct_cnt = 0
-                for idx, q in enumerate(st.session_state.test_questions):
-                    c_key = get_clean_str(q.get("correct_option")).upper()
-                    if st.session_state.user_answers.get(idx) == c_key:
-                        correct_cnt += 1
-                score_val = correct_cnt * 2
-                max_score = total_q * 2
-                pct = (score_val / max_score * 100) if max_score > 0 else 0.0
-                
-                try:
-                    db.table("quiz_attempts").insert({
-                        "student_email": st.session_state.user.get("email"),
-                        "subject": user_subject,
-                        "unit_name": st.session_state.test_module,
-                        "score": f"{score_val}/{max_score}",
-                        "total_questions": total_q,
-                        "percentage": round(pct, 2)
-                    }).execute()
-                except Exception:
-                    pass
-                    
-                st.session_state.last_score = {
-                    "score": score_val,
-                    "max_score": max_score,
-                    "pct": pct,
-                    "correct_cnt": correct_cnt,
-                    "total_q": total_q
-                }
-                st.session_state.test_active = False
-                st.session_state.test_completed = True
+        with st.container(key="content-panel-study"):
+            if st.button("← Back to Dashboard", key="back_to_dashboard_resources"):
+                st.session_state.active_main_menu = "Landing"
                 st.rerun()
+            st.subheader("📚 Study Resources")
+            st.info(f"🎯 **Target Stream:** Displaying study materials for **{user_subject}** (including General Paper 1).")
+        
+            try:
+                res = db.table("content").select("*").execute()
+                all_items = res.data if res.data else []
+                relevant_items = [
+                    i for i in all_items 
+                    if i.get("subject") == user_subject or "Paper 1" in str(i.get("subject")) or "General" in str(i.get("subject"))
+                ]
             
-            total_qs = len(st.session_state.test_questions)
-            curr_idx = st.session_state.current_q_idx
-            q_data = st.session_state.test_questions[curr_idx]
+                categories = {
+                    "📋 Syllabus": [i for i in relevant_items if i.get("category") == "Syllabus"],
+                    "📖 Learning Resources": [i for i in relevant_items if i.get("category") in ["Learning Resources", "Notes"]],
+                    "📝 PYQs": [i for i in relevant_items if i.get("category") == "PYQs"],
+                    "🎬 Video Lectures": [i for i in relevant_items if i.get("category") == "Video Lectures"],
+                    "🔗 Useful Links": [i for i in relevant_items if i.get("category") == "Useful Links"]
+                }
             
-            st.markdown("---")
-            if "Full Paper" in st.session_state.test_module:
-                st.markdown(f"#### Question {curr_idx + 1} of {total_qs}")
-            else:
-                unit_label = get_clean_str(q_data.get("unit")) or get_clean_str(q_data.get("topic")) or st.session_state.test_module
-                st.markdown(f"#### Question {curr_idx + 1} of {total_qs} (`{unit_label}`)")
+                # Visible mini-tab navigation: all study options are immediately available.
+                # The underlying category names and database filtering remain unchanged.
+                cat_list = ["📋 Syllabus", "📖 Learning Resources", "📝 PYQs", "🎬 Video Lectures", "🔗 Useful Links", "📁 View All Items"]
+                if st.session_state.active_resource_cat not in cat_list:
+                    st.session_state.active_resource_cat = cat_list[0]
+
+                st.markdown("<div class='resource-tab-row'>", unsafe_allow_html=True)
+                tab_cols = st.columns(6, gap="small")
+                for idx, tab_name in enumerate(cat_list):
+                    with tab_cols[idx]:
+                        container_key = "resource-tab-active" if st.session_state.active_resource_cat == tab_name else f"resource-tab-{idx}"
+                        with st.container(key=container_key):
+                            if st.button(tab_name, key=f"resource_tab_{idx}", use_container_width=True):
+                                st.session_state.active_resource_cat = tab_name
+                                st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+
+                sel_cat = st.session_state.active_resource_cat
+                st.markdown("---")
+                st.markdown(f"<h4 style='color: #092169; font-family: Times New Roman, Times, serif;'>Viewing Category: {sel_cat}</h4>", unsafe_allow_html=True)
+
+                if sel_cat == "📁 View All Items":
+                    if relevant_items:
+                        for item in relevant_items:
+                            render_single_unified_card(item)
+                    else:
+                        st.info(f"No study materials available yet for **{user_subject}**.")
+                else:
+                    target_items = categories.get(sel_cat, [])
+                    if target_items:
+                        for item in target_items:
+                            render_single_unified_card(item)
+                    else:
+                        st.info(f"No materials published yet under **{sel_cat}** for **{user_subject}**.")
+
+            except Exception as e:
+                st.error(f"Error loading study resources: {e}")
+
+        # =========================================================================
+        # SECTION 2: MOCK TEST ENGINE
+        # =========================================================================    elif st.session_state.active_main_menu == "Mock Test":
+        with st.container(key="content-panel-practice"):
+            if st.button("← Back to Dashboard", key="back_to_dashboard_practice"):
+                st.session_state.active_main_menu = "Landing"
+                st.rerun()
+            st.subheader("📝 Mock Test Engine")
+        
+            if not st.session_state.test_active and not st.session_state.test_completed:
+                st.info(f"🎯 **Target Practice:** Select a Unit Test or Full Paper Mock Test for **{user_subject}**.")
             
-            q_text = q_data.get('question_text', 'Question text unavailable')
-            st.write(f"**{q_text}**")
-            
-            opts = {
-                "A": get_option_val(q_data, "A"),
-                "B": get_option_val(q_data, "B"),
-                "C": get_option_val(q_data, "C"),
-                "D": get_option_val(q_data, "D")
-            }
-            
-            curr_ans = st.session_state.user_answers.get(curr_idx, None)
-            sel_opt = st.radio(
-                "Select Answer:",
-                options=["A", "B", "C", "D"],
-                format_func=lambda k: f"{k}) {opts[k]}",
-                index=["A", "B", "C", "D"].index(curr_ans) if curr_ans in ["A", "B", "C", "D"] else 0,
-                key=f"q_radio_{curr_idx}"
-            )
-            
-            st.session_state.user_answers[curr_idx] = sel_opt
-            
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                if st.button("⬅️ Previous", disabled=(curr_idx == 0)):
-                    st.session_state.current_q_idx -= 1
-                    st.rerun()
-            with c2:
-                if st.button("⏭️ Skip"):
-                    if curr_idx < total_qs - 1:
-                        st.session_state.current_q_idx += 1
+                module_options = UNIT_LIST + ["🏆 Full Paper Mock Test (100 Questions - 120 Mins - 200 Marks)"]
+                if st.session_state.get("selected_test_module") not in module_options:
+                    st.session_state.selected_test_module = module_options[0]
+
+                # Visible unit navigation: Unit 1–10 and Full Paper are directly clickable.
+                st.markdown("<div class='practice-unit-row'>", unsafe_allow_html=True)
+                unit_cols_1 = st.columns(5, gap="small")
+                for idx in range(5):
+                    mod = UNIT_LIST[idx]
+                    with unit_cols_1[idx]:
+                        if st.button(mod, key=f"practice_unit_{idx+1}", use_container_width=True):
+                            st.session_state.selected_test_module = mod
+                            st.rerun()
+                unit_cols_2 = st.columns(5, gap="small")
+                for idx in range(5, 10):
+                    mod = UNIT_LIST[idx]
+                    with unit_cols_2[idx - 5]:
+                        if st.button(mod, key=f"practice_unit_{idx+1}", use_container_width=True):
+                            st.session_state.selected_test_module = mod
+                            st.rerun()
+                with st.container(key="practice-full-row"):
+                    if st.button("🏆 Full Paper Mock Test", key="practice_full_paper", use_container_width=True):
+                        st.session_state.selected_test_module = module_options[-1]
                         st.rerun()
-            with c3:
-                if st.button("💾 Save & Next", disabled=(curr_idx == total_qs - 1)):
-                    st.session_state.current_q_idx += 1
-                    st.rerun()
-            with c4:
-                if st.button("🏁 Submit Test", type="primary"):
+
+                selected_mod = st.session_state.selected_test_module
+                st.markdown(
+                    f"<div style='margin:10px 0 12px; padding:10px 14px; border-left:4px solid #E7C56B; background:rgba(255,255,255,.07); border-radius:8px;'><strong>Selected:</strong> {selected_mod}</div>",
+                    unsafe_allow_html=True
+                )
+            
+                if "Full Paper" in selected_mod:
+                    st.write("📋 **Test Rules:** 100 Questions (10 Questions drawn from each of the 10 Units). Time limit: **120 Minutes**. 2 Marks per question (Total: 200 Marks). No negative marking.")
+                else:
+                    st.write(f"📋 **Test Rules:** 25 Questions for **{selected_mod}**. Time limit: **30 Minutes**. 2 Marks per question (Total: 50 Marks). No negative marking.")
+            
+                if st.button("🚀 Start Practice Test", use_container_width=True):
+                    with st.spinner("Preparing question paper..."):
+                        try:
+                            q_res = db.table("questions").select("*").range(0, 4999).execute()
+                            all_qs = q_res.data if q_res.data else []
+                            subj_qs = [q for q in all_qs if is_subject_match(q, user_subject)]
+                            if not subj_qs:
+                                subj_qs = all_qs
+
+                            selected_qs = []
+                            if "Full Paper" in selected_mod:
+                                used_ids = set()
+                                unit_selected = []
+                            
+                                for u_idx in range(1, 11):
+                                    u_pool = [q for q in subj_qs if is_unit_match(q, u_idx) and id(q) not in used_ids]
+                                    if len(u_pool) >= 10:
+                                        chosen = random.sample(u_pool, 10)
+                                    else:
+                                        chosen = u_pool
+                                    for q in chosen:
+                                        used_ids.add(id(q))
+                                        unit_selected.append(q)
+                                    
+                                selected_qs.extend(unit_selected)
+                            
+                                if len(selected_qs) < 100:
+                                    needed = 100 - len(selected_qs)
+                                    rem_subj = [q for q in subj_qs if id(q) not in used_ids]
+                                    if rem_subj:
+                                        add_from_subj = random.sample(rem_subj, min(needed, len(rem_subj)))
+                                        for q in add_from_subj:
+                                            used_ids.add(id(q))
+                                            selected_qs.append(q)
+                                        
+                                if len(selected_qs) < 100:
+                                    needed = 100 - len(selected_qs)
+                                    rem_all = [q for q in all_qs if id(q) not in used_ids]
+                                    if rem_all:
+                                        add_from_all = random.sample(rem_all, min(needed, len(rem_all)))
+                                        selected_qs.extend(add_from_all)
+                                    
+                                random.shuffle(selected_qs)
+                                st.session_state.time_limit = 120 * 60
+                            else:
+                                u_match = re.search(r'\d+', selected_mod)
+                                u_idx = int(u_match.group(0)) if u_match else 0
+                                if u_idx > 0:
+                                    u_pool = [q for q in subj_qs if is_unit_match(q, u_idx)]
+                                else:
+                                    u_pool = [q for q in subj_qs if q.get("unit") == selected_mod or q.get("topic") == selected_mod]
+                                
+                                if len(u_pool) < 25:
+                                    rem_pool = [q for q in subj_qs if id(q) not in [id(item) for item in u_pool]]
+                                    needed = 25 - len(u_pool)
+                                    if rem_pool:
+                                        u_pool.extend(random.sample(rem_pool, min(needed, len(rem_pool))))
+                                    
+                                if u_pool:
+                                    selected_qs = random.sample(u_pool, min(25, len(u_pool)))
+                                st.session_state.time_limit = 30 * 60
+                        
+                            if selected_qs:
+                                st.session_state.test_questions = selected_qs
+                                st.session_state.start_time = time.time()
+                                st.session_state.user_answers = {}
+                                st.session_state.current_q_idx = 0
+                                st.session_state.test_module = selected_mod
+                                st.session_state.test_active = True
+                                st.rerun()
+                            else:
+                                st.warning(f"No questions available in database for **{selected_mod}**.")
+                        except Exception as e:
+                            st.error(f"Error initializing test: {e}")
+
+            elif st.session_state.test_active:
+                elapsed = time.time() - st.session_state.start_time
+                remaining = max(0, int(st.session_state.time_limit - elapsed))
+            
+                mins, secs = divmod(remaining, 60)
+                hrs, mins = divmod(mins, 60)
+                time_str = f"{hrs:02d}:{mins:02d}:{secs:02d}"
+            
+                header_col, timer_col = st.columns([3, 1])
+                with header_col:
+                    st.markdown(f"### 📝 {st.session_state.test_module}")
+                with timer_col:
+                    st.metric("⏳ Time Remaining", time_str)
+            
+                if remaining <= 0:
+                    st.warning("⏱️ Time is up! Auto-submitting your test...")
                     total_q = len(st.session_state.test_questions)
                     correct_cnt = 0
                     for idx, q in enumerate(st.session_state.test_questions):
@@ -831,7 +808,7 @@ def render_student_portal(db: Client):
                     score_val = correct_cnt * 2
                     max_score = total_q * 2
                     pct = (score_val / max_score * 100) if max_score > 0 else 0.0
-                    
+                
                     try:
                         db.table("quiz_attempts").insert({
                             "student_email": st.session_state.user.get("email"),
@@ -841,9 +818,9 @@ def render_student_portal(db: Client):
                             "total_questions": total_q,
                             "percentage": round(pct, 2)
                         }).execute()
-                    except Exception as e:
-                        st.error(f"Error logging result: {e}")
-                        
+                    except Exception:
+                        pass
+                    
                     st.session_state.last_score = {
                         "score": score_val,
                         "max_score": max_score,
@@ -854,110 +831,190 @@ def render_student_portal(db: Client):
                     st.session_state.test_active = False
                     st.session_state.test_completed = True
                     st.rerun()
-
-            st.markdown("---")
-            st.markdown("##### 🧭 Question Palette Navigation")
-            p_cols = st.columns(10)
-            for i in range(total_qs):
-                is_ans = i in st.session_state.user_answers
-                is_curr = i == curr_idx
-                lbl = f"🔵{i+1}" if is_curr else (f"🟢{i+1}" if is_ans else f"⚪{i+1}")
-                with p_cols[i % 10]:
-                    if st.button(lbl, key=f"p_btn_{i}"):
-                        st.session_state.current_q_idx = i
+            
+                total_qs = len(st.session_state.test_questions)
+                curr_idx = st.session_state.current_q_idx
+                q_data = st.session_state.test_questions[curr_idx]
+            
+                st.markdown("---")
+                if "Full Paper" in st.session_state.test_module:
+                    st.markdown(f"#### Question {curr_idx + 1} of {total_qs}")
+                else:
+                    unit_label = get_clean_str(q_data.get("unit")) or get_clean_str(q_data.get("topic")) or st.session_state.test_module
+                    st.markdown(f"#### Question {curr_idx + 1} of {total_qs} (`{unit_label}`)")
+            
+                q_text = q_data.get('question_text', 'Question text unavailable')
+                st.write(f"**{q_text}**")
+            
+                opts = {
+                    "A": get_option_val(q_data, "A"),
+                    "B": get_option_val(q_data, "B"),
+                    "C": get_option_val(q_data, "C"),
+                    "D": get_option_val(q_data, "D")
+                }
+            
+                curr_ans = st.session_state.user_answers.get(curr_idx, None)
+                sel_opt = st.radio(
+                    "Select Answer:",
+                    options=["A", "B", "C", "D"],
+                    format_func=lambda k: f"{k}) {opts[k]}",
+                    index=["A", "B", "C", "D"].index(curr_ans) if curr_ans in ["A", "B", "C", "D"] else 0,
+                    key=f"q_radio_{curr_idx}"
+                )
+            
+                st.session_state.user_answers[curr_idx] = sel_opt
+            
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    if st.button("⬅️ Previous", disabled=(curr_idx == 0)):
+                        st.session_state.current_q_idx -= 1
+                        st.rerun()
+                with c2:
+                    if st.button("⏭️ Skip"):
+                        if curr_idx < total_qs - 1:
+                            st.session_state.current_q_idx += 1
+                            st.rerun()
+                with c3:
+                    if st.button("💾 Save & Next", disabled=(curr_idx == total_qs - 1)):
+                        st.session_state.current_q_idx += 1
+                        st.rerun()
+                with c4:
+                    if st.button("🏁 Submit Test", type="primary"):
+                        total_q = len(st.session_state.test_questions)
+                        correct_cnt = 0
+                        for idx, q in enumerate(st.session_state.test_questions):
+                            c_key = get_clean_str(q.get("correct_option")).upper()
+                            if st.session_state.user_answers.get(idx) == c_key:
+                                correct_cnt += 1
+                        score_val = correct_cnt * 2
+                        max_score = total_q * 2
+                        pct = (score_val / max_score * 100) if max_score > 0 else 0.0
+                    
+                        try:
+                            db.table("quiz_attempts").insert({
+                                "student_email": st.session_state.user.get("email"),
+                                "subject": user_subject,
+                                "unit_name": st.session_state.test_module,
+                                "score": f"{score_val}/{max_score}",
+                                "total_questions": total_q,
+                                "percentage": round(pct, 2)
+                            }).execute()
+                        except Exception as e:
+                            st.error(f"Error logging result: {e}")
+                        
+                        st.session_state.last_score = {
+                            "score": score_val,
+                            "max_score": max_score,
+                            "pct": pct,
+                            "correct_cnt": correct_cnt,
+                            "total_q": total_q
+                        }
+                        st.session_state.test_active = False
+                        st.session_state.test_completed = True
                         st.rerun()
 
-        elif st.session_state.test_completed:
-            res = st.session_state.last_score
-            st.success("🎉 Test Submitted Successfully!")
-            
-            sc_val = res.get('score')
-            mx_val = res.get('max_score')
-            p_val = res.get('pct')
-            cc_val = res.get('correct_cnt')
-            tq_val = res.get('total_q')
-            
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                st.metric("Total Score", f"{sc_val}/{mx_val}")
-            with m2:
-                st.metric("Percentage", f"{p_val:.2f}%")
-            with m3:
-                st.metric("Correct Answers", f"{cc_val}/{tq_val}")
-            
-            st.markdown("---")
-            st.subheader("📖 Detailed Question Review & Answer Keys")
-            
-            for idx, q in enumerate(st.session_state.test_questions, 1):
-                user_ans = st.session_state.user_answers.get(idx - 1, "Unattempted")
-                correct_key = get_clean_str(q.get("correct_option")).upper()
-                is_correct = user_ans == correct_key
-                
-                status_icon = "✅ Correct" if is_correct else ("❌ Incorrect" if user_ans != "Unattempted" else "⚪ Unattempted")
-                q_heading = q.get('question_text', 'Question text')
-                
-                with st.expander(f"Q{idx}: {q_heading} [{status_icon}]"):
-                    optA = get_option_val(q, 'A')
-                    optB = get_option_val(q, 'B')
-                    optC = get_option_val(q, 'C')
-                    optD = get_option_val(q, 'D')
-                    st.write(f"**A:** {optA}")
-                    st.write(f"**B:** {optB}")
-                    st.write(f"**C:** {optC}")
-                    st.write(f"**D:** {optD}")
-                    st.write(f"**Your Answer:** {user_ans}")
-                    st.write(f"**Correct Key:** {correct_key}")
-                    exp = q.get("explanation")
-                    if exp and get_clean_str(exp):
-                        # Some imported answer explanations contain a literal
-                        # editor token instead of a rendered arrow. Normalize it
-                        # before displaying the explanation to students.
-                        exp_display = get_clean_str(exp)
-                        exp_display = re.sub(r"(?i)\?_?right[_ ]arrow\b", "→", exp_display)
-                        exp_display = exp_display.replace("\\rightarrow", "→").replace("\rightarrow", "→")
-                        exp_display = re.sub(r"[ \t]+([,.;:!?])", r"\1", exp_display)
-                        exp_display = re.sub(r"([,.;:!?])(?=[A-Za-z0-9])", r"\1 ", exp_display)
-                        st.info(f"💡 **Explanation / Notes:** {exp_display}")
-
-            if st.button("🔄 Take Another Practice Test", type="primary"):
-                st.session_state.test_completed = False
-                st.session_state.test_questions = []
-                st.session_state.user_answers = {}
-                st.rerun()
-
-    # =========================================================================
-    # SECTION 3: MY PERFORMANCE
-    # =========================================================================
-    elif st.session_state.active_main_menu == "My Performance":
-        if st.button("← Back to Dashboard", key="back_to_dashboard_performance"):
-            st.session_state.active_main_menu = "Landing"
-            st.rerun()
-        st.subheader("📊 My Performance & Attempt History")
-        student_email = st.session_state.user.get("email")
-        
-        try:
-            att_res = db.table("quiz_attempts").select("*").eq("student_email", student_email).order("attempted_at", desc=True).execute()
-            attempts = att_res.data if att_res.data else []
-            
-            if attempts:
-                total_tests = len(attempts)
-                avg_pct = sum(float(a.get("percentage", 0)) for a in attempts) / total_tests
-                best_pct = max(float(a.get("percentage", 0)) for a in attempts)
-                
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.metric("Total Tests Attempted", total_tests)
-                with c2:
-                    st.metric("Average Score %", f"{avg_pct:.1f}%")
-                with c3:
-                    st.metric("Best Score %", f"{best_pct:.1f}%")
-                
                 st.markdown("---")
-                st.markdown("<h4 style='color: #092169; font-family: Times New Roman, Times, serif;'>📜 Detailed Attempt History Table</h4>", unsafe_allow_html=True)
-                st.dataframe(attempts, use_container_width=True)
-            else:
-                st.info("You haven't attempted any practice tests yet. Go to the **Mock Test Engine** tab to take your first test!")
-        except Exception as e:
-            st.error(f"Error loading performance history: {e}")
+                st.markdown("##### 🧭 Question Palette Navigation")
+                p_cols = st.columns(10)
+                for i in range(total_qs):
+                    is_ans = i in st.session_state.user_answers
+                    is_curr = i == curr_idx
+                    lbl = f"🔵{i+1}" if is_curr else (f"🟢{i+1}" if is_ans else f"⚪{i+1}")
+                    with p_cols[i % 10]:
+                        if st.button(lbl, key=f"p_btn_{i}"):
+                            st.session_state.current_q_idx = i
+                            st.rerun()
 
+            elif st.session_state.test_completed:
+                res = st.session_state.last_score
+                st.success("🎉 Test Submitted Successfully!")
+            
+                sc_val = res.get('score')
+                mx_val = res.get('max_score')
+                p_val = res.get('pct')
+                cc_val = res.get('correct_cnt')
+                tq_val = res.get('total_q')
+            
+                m1, m2, m3 = st.columns(3)
+                with m1:
+                    st.metric("Total Score", f"{sc_val}/{mx_val}")
+                with m2:
+                    st.metric("Percentage", f"{p_val:.2f}%")
+                with m3:
+                    st.metric("Correct Answers", f"{cc_val}/{tq_val}")
+            
+                st.markdown("---")
+                st.subheader("📖 Detailed Question Review & Answer Keys")
+            
+                for idx, q in enumerate(st.session_state.test_questions, 1):
+                    user_ans = st.session_state.user_answers.get(idx - 1, "Unattempted")
+                    correct_key = get_clean_str(q.get("correct_option")).upper()
+                    is_correct = user_ans == correct_key
+                
+                    status_icon = "✅ Correct" if is_correct else ("❌ Incorrect" if user_ans != "Unattempted" else "⚪ Unattempted")
+                    q_heading = q.get('question_text', 'Question text')
+                
+                    with st.expander(f"Q{idx}: {q_heading} [{status_icon}]"):
+                        optA = get_option_val(q, 'A')
+                        optB = get_option_val(q, 'B')
+                        optC = get_option_val(q, 'C')
+                        optD = get_option_val(q, 'D')
+                        st.write(f"**A:** {optA}")
+                        st.write(f"**B:** {optB}")
+                        st.write(f"**C:** {optC}")
+                        st.write(f"**D:** {optD}")
+                        st.write(f"**Your Answer:** {user_ans}")
+                        st.write(f"**Correct Key:** {correct_key}")
+                        exp = q.get("explanation")
+                        if exp and get_clean_str(exp):
+                            # Some imported answer explanations contain a literal
+                            # editor token instead of a rendered arrow. Normalize it
+                            # before displaying the explanation to students.
+                            exp_display = get_clean_str(exp)
+                            exp_display = re.sub(r"(?i)\?_?right[_ ]arrow\b", "→", exp_display)
+                            exp_display = exp_display.replace("\\rightarrow", "→").replace("\rightarrow", "→")
+                            exp_display = re.sub(r"[ \t]+([,.;:!?])", r"\1", exp_display)
+                            exp_display = re.sub(r"([,.;:!?])(?=[A-Za-z0-9])", r"\1 ", exp_display)
+                            st.info(f"💡 **Explanation / Notes:** {exp_display}")
+
+                if st.button("🔄 Take Another Practice Test", type="primary"):
+                    st.session_state.test_completed = False
+                    st.session_state.test_questions = []
+                    st.session_state.user_answers = {}
+                    st.rerun()
+
+        # =========================================================================
+        # SECTION 3: MY PERFORMANCE
+        # =========================================================================    elif st.session_state.active_main_menu == "My Performance":
+        with st.container(key="content-panel-performance"):
+            if st.button("← Back to Dashboard", key="back_to_dashboard_performance"):
+                st.session_state.active_main_menu = "Landing"
+                st.rerun()
+            st.subheader("📊 My Performance & Attempt History")
+            student_email = st.session_state.user.get("email")
+        
+            try:
+                att_res = db.table("quiz_attempts").select("*").eq("student_email", student_email).order("attempted_at", desc=True).execute()
+                attempts = att_res.data if att_res.data else []
+            
+                if attempts:
+                    total_tests = len(attempts)
+                    avg_pct = sum(float(a.get("percentage", 0)) for a in attempts) / total_tests
+                    best_pct = max(float(a.get("percentage", 0)) for a in attempts)
+                
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        st.metric("Total Tests Attempted", total_tests)
+                    with c2:
+                        st.metric("Average Score %", f"{avg_pct:.1f}%")
+                    with c3:
+                        st.metric("Best Score %", f"{best_pct:.1f}%")
+                
+                    st.markdown("---")
+                    st.markdown("<h4 style='color: #092169; font-family: Times New Roman, Times, serif;'>📜 Detailed Attempt History Table</h4>", unsafe_allow_html=True)
+                    st.dataframe(attempts, use_container_width=True)
+                else:
+                    st.info("You haven't attempted any practice tests yet. Go to the **Mock Test Engine** tab to take your first test!")
+            except Exception as e:
+                st.error(f"Error loading performance history: {e}")
     render_footer()
