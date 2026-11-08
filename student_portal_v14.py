@@ -182,11 +182,9 @@ def render_student_portal(db: Client):
     user_name = st.session_state.user.get('name', 'Student')
     user_subject = st.session_state.user.get('subject', 'Paper 1 (General Paper)')
 
-    # Keep the existing navigation state and add defaults for the dashboard selectors.
-    if "dashboard_resource_category" not in st.session_state:
-        st.session_state.dashboard_resource_category = st.session_state.active_resource_cat
-    if "dashboard_test_module" not in st.session_state:
-        st.session_state.dashboard_test_module = UNIT_LIST[0]
+    # Keep the existing test-module selection available in the Mock Test Engine.
+    if "selected_test_module" not in st.session_state:
+        st.session_state.selected_test_module = UNIT_LIST[0]
 
     # Main-card styling. Each card is a Streamlit container so its controls remain
     # native, accessible Streamlit widgets (rather than decorative HTML controls).
@@ -215,53 +213,58 @@ def render_student_portal(db: Client):
         border-radius: 10px; border: 1px solid rgba(255,215,0,.5); text-align: right;
     }
 
-    /* Three dashboard cards */
+    /* Three dashboard cards: equal dimensions and purposeful, vibrant colors */
     .st-key-dashboard-card-study,
     .st-key-dashboard-card-practice,
     .st-key-dashboard-card-performance {
-        border-radius: 15px !important;
-        padding: 25px 24px 22px !important;
-        min-height: 390px;
-        box-shadow: 0 8px 18px rgba(0,0,0,.19);
-        border: 1px solid rgba(255,255,255,.18);
+        box-sizing: border-box !important;
+        height: 430px !important;
+        min-height: 430px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        border-radius: 20px !important;
+        padding: 26px 24px 22px !important;
+        border: 2px solid #E7C56B !important;
+        box-shadow:
+            0 0 0 1px rgba(255, 226, 150, .22),
+            0 8px 22px rgba(15, 23, 42, .24),
+            0 0 13px rgba(231, 197, 107, .18);
+        overflow: hidden;
     }
     .st-key-dashboard-card-study {
-        background: linear-gradient(145deg, #852443 0%, #4A0E25 100%);
-        border-top: 4px solid #D9B66F;
+        background: linear-gradient(145deg, #3478F6 0%, #1746B5 100%);
     }
     .st-key-dashboard-card-practice {
-        background: linear-gradient(145deg, #26785C 0%, #124B3A 100%);
-        border-top: 4px solid #D9B66F;
+        background: linear-gradient(145deg, #12B89A 0%, #087568 100%);
     }
     .st-key-dashboard-card-performance {
-        background: linear-gradient(145deg, #6828A5 0%, #401477 100%);
-        border-top: 4px solid #D9B66F;
+        background: linear-gradient(145deg, #9147F5 0%, #5B21B6 100%);
+    }
+    .st-key-dashboard-card-study [data-testid="stVerticalBlock"],
+    .st-key-dashboard-card-practice [data-testid="stVerticalBlock"],
+    .st-key-dashboard-card-performance [data-testid="stVerticalBlock"] {
+        height: 100% !important;
     }
     .dashboard-card-heading {
         color: #FFFFFF; text-align: center; font-size: 1.55rem;
         line-height: 1.25; margin: 12px 0 26px; font-weight: 600;
     }
     .dashboard-card-icon {
-        text-align: center; font-size: 3.25rem; color: #E3C477;
-        line-height: 1.1; margin-top: 2px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 2px auto 4px;
+        min-height: 76px;
     }
-    .st-key-dashboard-card-study label,
-    .st-key-dashboard-card-practice label {
-        color: #FFFFFF !important; font-size: 1rem !important;
-    }
-    .st-key-dashboard-card-study [data-testid="stSelectbox"],
-    .st-key-dashboard-card-practice [data-testid="stSelectbox"] {
-        margin-top: 18px;
-    }
-    .st-key-dashboard-card-study [data-baseweb="select"],
-    .st-key-dashboard-card-practice [data-baseweb="select"] {
-        background: rgba(255,255,255,.18) !important;
-        border: 1px solid rgba(255,255,255,.25) !important;
-        border-radius: 9px !important;
-    }
-    .st-key-dashboard-card-study [data-baseweb="select"] *,
-    .st-key-dashboard-card-practice [data-baseweb="select"] * {
-        color: #FFFFFF !important;
+    .dashboard-card-icon svg {
+        width: 66px;
+        height: 66px;
+        stroke: #F6D77A;
+        fill: none;
+        stroke-width: 2.1;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        filter: drop-shadow(0 2px 5px rgba(255, 218, 120, .32));
     }
     .st-key-dashboard-card-study [data-testid="stButton"] button,
     .st-key-dashboard-card-practice [data-testid="stButton"] button,
@@ -299,7 +302,10 @@ def render_student_portal(db: Client):
     @media (max-width: 900px) {
         .st-key-dashboard-card-study,
         .st-key-dashboard-card-practice,
-        .st-key-dashboard-card-performance { min-height: 330px; }
+        .st-key-dashboard-card-performance {
+            height: 400px !important;
+            min-height: 400px !important;
+        }
     }
     @media (max-width: 768px) {
         .omni-banner { flex-direction: column; text-align: center; justify-content: center; }
@@ -335,41 +341,47 @@ def render_student_portal(db: Client):
 
     card1, card2, card3 = st.columns([1, 1, 1], gap="large")
 
-    resource_card_options = [
-        "📋 Syllabus", "📖 Learning Resources & Notes", "📝 PYQs",
-        "🎬 Video Lectures", "🔗 Useful Links", "📁 View All Items"
-    ]
     with card1:
         with st.container(key="dashboard-card-study"):
-            st.markdown('<div class="dashboard-card-icon">📚</div><div class="dashboard-card-heading">Study Resources</div>', unsafe_allow_html=True)
-            selected_resource = st.selectbox(
-                "Select Category",
-                resource_card_options,
-                index=resource_card_options.index(st.session_state.dashboard_resource_category)
-                if st.session_state.dashboard_resource_category in resource_card_options else 0,
-                key="dashboard_resource_category"
+            st.markdown(
+                '<div class="dashboard-card-icon"><svg viewBox="0 0 64 64" aria-hidden="true">'
+                '<path d="M12 15 31 8l21 7-20 8-20-8Z"/><path d="M12 15v10l20 8 20-8V15"/>'
+                '<path d="m12 25-4 7 23 9 23-9-3-7"/><path d="m8 32v9l23 9 23-9v-9"/>'
+                '<path d="m8 41v8l23 8 23-8v-8"/></svg></div>'
+                '<div class="dashboard-card-heading">Study Resources</div>',
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                '<div style="color:#EAF2FF; text-align:center; line-height:1.5; margin:8px 0 24px;">'
+                'Explore syllabus, learning materials, notes, previous-year questions and more.'
+                '</div>',
+                unsafe_allow_html=True
             )
             st.write("")
             if st.button("Explore Resources  →", key="dashboard_open_resources", use_container_width=True):
                 st.session_state.active_main_menu = "Study Resources"
-                st.session_state.active_resource_cat = selected_resource
                 st.rerun()
 
-    module_options = UNIT_LIST + ["🏆 Full Paper Mock Test (100 Questions - 120 Mins - 200 Marks)"]
     with card2:
         with st.container(key="dashboard-card-practice"):
-            st.markdown('<div class="dashboard-card-icon">📝</div><div class="dashboard-card-heading">Practice Set Engine</div>', unsafe_allow_html=True)
-            selected_dashboard_module = st.selectbox(
-                "Select Test Module",
-                module_options,
-                index=module_options.index(st.session_state.dashboard_test_module)
-                if st.session_state.dashboard_test_module in module_options else 0,
-                key="dashboard_test_module"
+            st.markdown(
+                '<div class="dashboard-card-icon"><svg viewBox="0 0 64 64" aria-hidden="true">'
+                '<rect x="13" y="11" width="36" height="45" rx="3"/>'
+                '<path d="M24 11V7h14v4M21 23h19M21 31h12M21 39h10"/>'
+                '<path d="m39 43 12-12 5 5-12 12-7 2 2-7Z"/>'
+                '<path d="m48 34 5 5"/></svg></div>'
+                '<div class="dashboard-card-heading">Practice Set Engine</div>',
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                '<div style="color:#E6FFFA; text-align:center; line-height:1.5; margin:8px 0 24px;">'
+                'Strengthen your preparation with unit-wise tests and full-paper mock examinations.'
+                '</div>',
+                unsafe_allow_html=True
             )
             st.write("")
             if st.button("Open Practice Engine  →", key="dashboard_open_practice", use_container_width=True):
                 st.session_state.active_main_menu = "Mock Test"
-                st.session_state.selected_test_module = selected_dashboard_module
                 st.rerun()
 
     # Pull the student's real attempt history for the dashboard summary.
@@ -396,7 +408,14 @@ def render_student_portal(db: Client):
 
     with card3:
         with st.container(key="dashboard-card-performance"):
-            st.markdown('<div class="dashboard-card-icon">📈</div><div class="dashboard-card-heading">My Performance</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="dashboard-card-icon"><svg viewBox="0 0 64 64" aria-hidden="true">'
+                '<path d="M9 54h47M13 49V37h9v12M29 49V27h9v22M45 49V17h9v32"/>'
+                '<path d="m12 29 14-13 10 7L54 7"/>'
+                '<path d="M45 7h9v9"/></svg></div>'
+                '<div class="dashboard-card-heading">My Performance</div>',
+                unsafe_allow_html=True
+            )
             if dashboard_count:
                 avg_display = max(0, min(100, dashboard_avg))
                 st.markdown(
@@ -493,25 +512,8 @@ def render_student_portal(db: Client):
             )
             st.session_state.active_resource_cat = sel_cat
 
-            st.markdown(
-    f"""
-    <div style="
-        background-color: #FFFFFF;
-        color: #092169;
-        padding: 12px 16px;
-        margin: 12px 0 18px 0;
-        border-left: 4px solid #C5A45B;
-        border-bottom: 1px solid #E5E7EB;
-        border-radius: 4px;
-        font-family: 'Times New Roman', serif;
-        font-size: 19px;
-        font-weight: 600;
-    ">
-        Viewing Category: {sel_cat}
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+            st.markdown("---")
+            st.markdown(f"<h4 style='color: #092169; font-family: Times New Roman, Times, serif;'>Viewing Category: {sel_cat}</h4>", unsafe_allow_html=True)
 
             if sel_cat == "📁 View All Items":
                 if relevant_items:
