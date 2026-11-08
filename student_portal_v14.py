@@ -57,6 +57,14 @@ CAT_STYLES = {
         "btn_bg": "linear-gradient(135deg, #C084FC 0%, #9333EA 100%)",
         "btn_text": "#FFFFFF"
     },
+    "Notes": {
+        "card_bg": "linear-gradient(135deg, #3730A3 0%, #5B21B6 100%)",
+        "border_color": "#C084FC",
+        "title_color": "#FFFFFF",
+        "meta_color": "#EDE9FE",
+        "btn_bg": "linear-gradient(135deg, #C084FC 0%, #9333EA 100%)",
+        "btn_text": "#FFFFFF"
+    },
     "PYQs": {
         "card_bg": "linear-gradient(135deg, #065F46 0%, #047857 100%)",
         "border_color": "#34D399",
@@ -92,9 +100,6 @@ DEFAULT_CARD_STYLE = {
     "btn_text": "#092169"
 }
 
-# ==========================================
-# MATCHING & SANITIZATION HELPERS
-# ==========================================
 def get_clean_str(val) -> str:
     if val is None:
         return ""
@@ -105,30 +110,20 @@ def get_clean_str(val) -> str:
 
 def clean_resource_title(title: str, subject: str = "") -> str:
     if not title:
-        return "Untitled Resource"
-    
-    t = str(title).strip()
-    t = re.sub(r'^(?:arro[a-z0-9_.-]*|arrow[a-z0-9_.-]*)\s*', '', t, flags=re.IGNORECASE)
-    t = re.sub(r'^[📌🎯📚📝📖🎬🔗📋📁]+\s*', '', t)
-    t = t.strip(" :|-")
-    
-    if t.lower().startswith("net syllabus"):
-        return f"📌 NET Syllabus | {subject}" if subject else "📌 NET Syllabus"
-    elif t.lower().startswith("set syllabus"):
-        return f"📌 SET Syllabus | {subject}" if subject else "📌 SET Syllabus"
-    
-    return f"📌 {t}" if not t.startswith("📌") else t
+        return "📌 Untitled Resource"
+    s = str(title).strip()
+    s = re.sub(r'^(?:arro[^\s]*|arrow|📌|🎯|📋|📖|📝|🎬|🔗|\s)+', '', s, flags=re.IGNORECASE).strip()
+    s = re.sub(r'^[^\w\s]+', '', s).strip()
+    if not s:
+        s = "Untitled Resource"
+    return f"📌 {s}"
 
 def is_subject_match(q: dict, target_subject: str) -> bool:
     if not target_subject:
         return True
     q_subj = get_clean_str(q.get("subject")).lower()
     t_subj = get_clean_str(target_subject).lower()
-    if not q_subj:
-        return True
-    if q_subj == t_subj or "paper 1" in q_subj or "general" in q_subj:
-        return True
-    if t_subj in q_subj or q_subj in t_subj:
+    if not q_subj or q_subj == t_subj or "paper 1" in q_subj or "general" in q_subj or t_subj in q_subj or q_subj in t_subj:
         return True
     main_target = t_subj.split("(")[0].strip()
     if main_target and main_target in q_subj:
@@ -140,25 +135,19 @@ def is_unit_match(q: dict, u_idx: int) -> bool:
     u_str_dash = f"Unit-{u_idx}"
     u_str_nodpace = f"Unit{u_idx}"
     u_str_zero = f"Unit 0{u_idx}"
-    
     val_unit = get_clean_str(q.get("unit"))
     val_topic = get_clean_str(q.get("topic"))
     val_unit_num = get_clean_str(q.get("unit_number")) or get_clean_str(q.get("unit_no")) or get_clean_str(q.get("unit_id"))
-    
     if val_unit_num == str(u_idx) or val_unit_num == f"0{u_idx}":
         return True
-
     text = (val_unit + " " + val_topic).strip().lower()
     if not text:
         return False
-
     if val_unit.lower() in [u_str.lower(), u_str_dash.lower(), u_str_nodpace.lower(), u_str_zero.lower(), str(u_idx)] or val_topic.lower() in [u_str.lower(), u_str_dash.lower(), u_str_nodpace.lower(), u_str_zero.lower(), str(u_idx)]:
         return True
-
     pattern = rf"\bunit\s*[-:_]*\s*0*{u_idx}\b"
     if re.search(pattern, text, re.IGNORECASE) or f"unit {u_idx}" in text or f"unit-{u_idx}" in text or f"unit{u_idx}" in text or f"unit 0{u_idx}" in text:
         return True
-        
     return False
 
 def get_option_val(q: dict, opt_key: str) -> str:
@@ -176,230 +165,261 @@ def get_option_val(q: dict, opt_key: str) -> str:
 def render_footer():
     st.markdown("---")
     st.markdown(
-        "<div style='text-align: center; color: #666; padding: 12px; font-size: 0.9em; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;'>"
+        "<div style='text-align: center; color: #666; padding: 12px; font-size: 0.9em; font-family: Times New Roman, Times, serif;'>"
         "<strong>Curated by Dr. Joydip Chandra, BRSC</strong><br>"
         "Copyright 2026 All rights reserved"
         "</div>",
         unsafe_allow_html=True
     )
 
-# ==========================================
-# STUDENT PORTAL RENDERER (V14 EMOJI FIX & SPECIFIC TARGETING)
-# ==========================================
 def render_student_portal(db: Client):
     if "active_main_menu" not in st.session_state:
         st.session_state.active_main_menu = "Study Resources"
     if "active_resource_cat" not in st.session_state:
         st.session_state.active_resource_cat = "📋 Syllabus"
 
-    # Injected CSS with Times New Roman + Unicode Emoji Fallbacks
+    # Dashboard identity and subject
+    user_name = st.session_state.user.get('name', 'Student')
+    user_subject = st.session_state.user.get('subject', 'Paper 1 (General Paper)')
+
+    # Keep the existing navigation state and add defaults for the dashboard selectors.
+    if "dashboard_resource_category" not in st.session_state:
+        st.session_state.dashboard_resource_category = st.session_state.active_resource_cat
+    if "dashboard_test_module" not in st.session_state:
+        st.session_state.dashboard_test_module = UNIT_LIST[0]
+
+    # Main-card styling. Each card is a Streamlit container so its controls remain
+    # native, accessible Streamlit widgets (rather than decorative HTML controls).
     st.markdown("""
     <style>
-    /* Global Typography Force with Emoji Fallbacks */
-    html, body, [class*="css"], .stApp, p, div, span, label, h1, h2, h3, h4, h5, h6, button, input, select, textarea {
-        font-family: 'Times New Roman', Times, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif, serif !important;
+    html, body, [class*="css"], .stApp, p, div, span, label, h1, h2, h3, h4,
+    h5, h6, button, input, select, textarea {
+        font-family: 'Times New Roman', Times, serif !important;
     }
-    
-    /* OmniStride Top Header Banner */
+
     .omni-banner {
         background: linear-gradient(135deg, #092169 0%, #0d2d8c 100%);
-        color: #FFFFFF;
-        padding: 20px 24px;
-        border-radius: 14px;
+        color: #FFFFFF; padding: 20px 24px; border-radius: 14px;
         border-left: 6px solid #FFD700;
         box-shadow: 0 4px 16px rgba(9, 33, 105, 0.2);
-        margin-bottom: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 15px;
+        margin-bottom: 24px; display: flex; align-items: center;
+        justify-content: space-between; flex-wrap: wrap; gap: 15px;
     }
     .omni-title {
-        margin: 0;
-        padding: 0;
-        font-size: 2.3rem;
-        font-weight: bold;
-        color: #FFFFFF;
-        font-family: 'Times New Roman', Times, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', serif !important;
-        letter-spacing: 0.5px;
+        margin: 0; padding: 0; font-size: 2.3rem; font-weight: bold;
+        color: #FFFFFF; letter-spacing: 0.5px;
     }
-    .omni-tagline {
-        color: #FFD700;
-        font-weight: bold;
-        font-size: 1.15rem;
-        margin-top: 3px;
-        font-family: 'Times New Roman', Times, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', serif !important;
-    }
+    .omni-tagline { color: #FFD700; font-weight: bold; font-size: 1.15rem; margin-top: 3px; }
     .user-badge {
-        background: rgba(255, 255, 255, 0.12);
-        padding: 10px 18px;
-        border-radius: 10px;
-        border: 1px solid rgba(255, 215, 0, 0.5);
-        text-align: right;
+        background: rgba(255,255,255,.12); padding: 10px 18px;
+        border-radius: 10px; border: 1px solid rgba(255,215,0,.5); text-align: right;
     }
 
-    /* ------------------------------------------------------------- */
-    /* SPECIFICALLY TARGETED STYLING FOR 3 DASHBOARD NAVIGATION CARDS */
-    /* ------------------------------------------------------------- */
-    .dash-nav-container div[data-testid="column"]:nth-of-type(1) div[data-testid="stButton"] > button,
-    .dash-nav-container div[data-testid="stColumn"]:nth-of-type(1) div[data-testid="stButton"] > button {
-        background: linear-gradient(135deg, #7A182F 0%, #4A0E1C 100%) !important;
-        border: 2px solid #4A0E1C !important;
-        border-left: 6px solid #FFD700 !important;
-        border-radius: 14px !important;
-        padding: 18px 16px !important;
-        min-height: 75px !important;
-        box-shadow: 0 4px 14px rgba(122, 24, 47, 0.35) !important;
-        transition: all 0.25s ease !important;
-        width: 100% !important;
+    /* Three dashboard cards */
+    .st-key-dashboard-card-study,
+    .st-key-dashboard-card-practice,
+    .st-key-dashboard-card-performance {
+        border-radius: 15px !important;
+        padding: 25px 24px 22px !important;
+        min-height: 390px;
+        box-shadow: 0 8px 18px rgba(0,0,0,.19);
+        border: 1px solid rgba(255,255,255,.18);
     }
-    .dash-nav-container div[data-testid="column"]:nth-of-type(1) button * {
-        color: #FFD700 !important;
-        font-size: 1.25rem !important;
-        font-weight: bold !important;
-        font-family: 'Times New Roman', Times, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', serif !important;
+    .st-key-dashboard-card-study {
+        background: linear-gradient(145deg, #852443 0%, #4A0E25 100%);
+        border-top: 4px solid #D9B66F;
     }
-
-    .dash-nav-container div[data-testid="column"]:nth-of-type(2) div[data-testid="stButton"] > button,
-    .dash-nav-container div[data-testid="stColumn"]:nth-of-type(2) div[data-testid="stButton"] > button {
-        background: linear-gradient(135deg, #2B694B 0%, #1A432F 100%) !important;
-        border: 2px solid #1A432F !important;
-        border-left: 6px solid #34D399 !important;
-        border-radius: 14px !important;
-        padding: 18px 16px !important;
-        min-height: 75px !important;
-        box-shadow: 0 4px 14px rgba(43, 105, 75, 0.35) !important;
-        transition: all 0.25s ease !important;
-        width: 100% !important;
+    .st-key-dashboard-card-practice {
+        background: linear-gradient(145deg, #26785C 0%, #124B3A 100%);
+        border-top: 4px solid #D9B66F;
     }
-    .dash-nav-container div[data-testid="column"]:nth-of-type(2) button * {
-        color: #A7F3D0 !important;
-        font-size: 1.25rem !important;
-        font-weight: bold !important;
-        font-family: 'Times New Roman', Times, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', serif !important;
+    .st-key-dashboard-card-performance {
+        background: linear-gradient(145deg, #6828A5 0%, #401477 100%);
+        border-top: 4px solid #D9B66F;
     }
-
-    .dash-nav-container div[data-testid="column"]:nth-of-type(3) div[data-testid="stButton"] > button,
-    .dash-nav-container div[data-testid="stColumn"]:nth-of-type(3) div[data-testid="stButton"] > button {
-        background: linear-gradient(135deg, #8335E8 0%, #5B1BB8 100%) !important;
-        border: 2px solid #5B1BB8 !important;
-        border-left: 6px solid #C084FC !important;
-        border-radius: 14px !important;
-        padding: 18px 16px !important;
-        min-height: 75px !important;
-        box-shadow: 0 4px 14px rgba(131, 53, 232, 0.35) !important;
-        transition: all 0.25s ease !important;
-        width: 100% !important;
+    .dashboard-card-heading {
+        color: #FFFFFF; text-align: center; font-size: 1.55rem;
+        line-height: 1.25; margin: 12px 0 26px; font-weight: 600;
     }
-    .dash-nav-container div[data-testid="column"]:nth-of-type(3) button * {
-        color: #DDD6FE !important;
-        font-size: 1.25rem !important;
-        font-weight: bold !important;
-        font-family: 'Times New Roman', Times, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', serif !important;
+    .dashboard-card-icon {
+        text-align: center; font-size: 3.25rem; color: #E3C477;
+        line-height: 1.1; margin-top: 2px;
     }
-
-    /* Hover Lift Effect */
-    .dash-nav-container button:hover {
-        transform: translateY(-3px) !important;
-        filter: brightness(1.1) !important;
+    .st-key-dashboard-card-study label,
+    .st-key-dashboard-card-practice label {
+        color: #FFFFFF !important; font-size: 1rem !important;
     }
-
-    /* Selectbox Dropdown Custom Styling */
-    div[data-testid="stSelectbox"] > label {
-        font-family: 'Times New Roman', Times, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', serif !important;
-        font-size: 1.1rem !important;
-        font-weight: bold !important;
-        color: #092169 !important;
+    .st-key-dashboard-card-study [data-testid="stSelectbox"],
+    .st-key-dashboard-card-practice [data-testid="stSelectbox"] {
+        margin-top: 18px;
     }
-    div[data-testid="stSelectbox"] [data-baseweb="select"] {
-        background-color: #F8FAFC !important;
-        border: 2px solid #092169 !important;
-        border-radius: 10px !important;
+    .st-key-dashboard-card-study [data-baseweb="select"],
+    .st-key-dashboard-card-practice [data-baseweb="select"] {
+        background: rgba(255,255,255,.18) !important;
+        border: 1px solid rgba(255,255,255,.25) !important;
+        border-radius: 9px !important;
     }
-    div[data-testid="stSelectbox"] [data-baseweb="select"] * {
-        font-family: 'Times New Roman', Times, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', serif !important;
-        font-size: 1.05rem !important;
-        font-weight: bold !important;
-        color: #092169 !important;
+    .st-key-dashboard-card-study [data-baseweb="select"] *,
+    .st-key-dashboard-card-practice [data-baseweb="select"] * {
+        color: #FFFFFF !important;
+    }
+    .st-key-dashboard-card-study [data-testid="stButton"] button,
+    .st-key-dashboard-card-practice [data-testid="stButton"] button,
+    .st-key-dashboard-card-performance [data-testid="stButton"] button {
+        background: rgba(255,255,255,.16) !important;
+        color: #FFFFFF !important; border: 1px solid rgba(255,255,255,.48) !important;
+        border-radius: 9px !important; font-weight: bold !important;
+    }
+    .st-key-dashboard-card-study [data-testid="stButton"] button:hover,
+    .st-key-dashboard-card-practice [data-testid="stButton"] button:hover,
+    .st-key-dashboard-card-performance [data-testid="stButton"] button:hover {
+        background: rgba(255,255,255,.27) !important;
+        border-color: #E3C477 !important;
+    }
+    .performance-number {
+        color: #FFFFFF; font-size: 1.55rem; font-weight: bold;
+        text-align: center; margin: 4px 0;
+    }
+    .performance-caption {
+        color: #F0E5FF; font-size: .9rem; text-align: center;
+        margin-bottom: 13px;
+    }
+    .performance-stat {
+        color: #FFFFFF; font-size: 1rem; margin: 9px 0;
+        display: flex; justify-content: space-between; gap: 10px;
+    }
+    .performance-track {
+        height: 7px; background: rgba(255,255,255,.25);
+        border-radius: 10px; overflow: hidden; margin: 5px 0 10px;
+    }
+    .performance-fill {
+        height: 100%; background: #D9B66F; border-radius: 10px;
     }
 
-    /* Remove Mobile Detail Arrow Markers */
-    details summary::-webkit-details-marker, details summary::marker {
-        display: none !important;
+    @media (max-width: 900px) {
+        .st-key-dashboard-card-study,
+        .st-key-dashboard-card-practice,
+        .st-key-dashboard-card-performance { min-height: 330px; }
     }
-
-    /* Mobile Responsive Header Rules */
     @media (max-width: 768px) {
-        .omni-banner {
-            flex-direction: column;
-            text-align: center;
-            justify-content: center;
-        }
-        .user-badge {
-            text-align: center;
-            width: 100%;
-        }
-        .omni-title {
-            font-size: 1.85rem;
-        }
-        .omni-tagline {
-            font-size: 1.05rem;
-        }
+        .omni-banner { flex-direction: column; text-align: center; justify-content: center; }
+        .user-badge { text-align: center; width: 100%; }
+        .omni-title { font-size: 1.85rem; }
+        .omni-tagline { font-size: 1.05rem; }
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # Header Banner
-    user_name = st.session_state.user.get('name', 'Student')
-    user_subject = st.session_state.user.get('subject', 'Paper 1 (General Paper)')
-
+    # Header retained; requested redesign is limited to the three main cards.
     st.markdown(f"""
     <div class="omni-banner">
-        <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
-            <img src="data:image/png;base64,{LOGO_B64}" style="height: 65px; width: auto; max-width: 100%; display: block;">
+        <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+            <img src="data:image/png;base64,{LOGO_B64}" style="height:65px; width:auto; max-width:100%; display:block;">
             <div>
                 <h1 class="omni-title">OmniStride</h1>
                 <div class="omni-tagline">NET SET Go...to the Goal 🎯</div>
             </div>
         </div>
         <div class="user-badge">
-            <div style="font-size: 0.88rem; color: #E0E7FF; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;">Welcome, Scholar</div>
-            <div style="font-weight: bold; font-size: 1.15rem; color: #FFFFFF; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;">{user_name}</div>
-            <div style="font-size: 0.88rem; color: #FFD700; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;">🎯 {user_subject}</div>
+            <div style="font-size:.88rem; color:#E0E7FF;">Welcome, Scholar</div>
+            <div style="font-weight:bold; font-size:1.15rem; color:#FFFFFF;">{user_name}</div>
+            <div style="font-size:.88rem; color:#FFD700;">🎯 {user_subject}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # =========================================================================
-    # BODY SECTION: MY ACADEMIC DASHBOARD
-    # =========================================================================
-    st.markdown("<h2 style='color: #092169; margin-bottom: 16px; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;'>My Academic Dashboard</h2>", unsafe_allow_html=True)
-    
-    # 3 Main Navigation Flashcard Buttons with Explicit Container Class
-    st.markdown('<div class="dash-nav-container">', unsafe_allow_html=True)
-    m_col1, m_col2, m_col3 = st.columns(3)
-    
-    with m_col1:
-        lbl1 = "📚 Study Resources" if st.session_state.active_main_menu != "Study Resources" else "📚 Study Resources (Active)"
-        if st.button(lbl1, key="main_card_study", use_container_width=True):
-            st.session_state.active_main_menu = "Study Resources"
-            st.rerun()
+    st.markdown(
+        "<h2 style='color:#111827; margin:8px 0 20px; font-family:Times New Roman, Times, serif;'>My Academic Dashboard</h2>",
+        unsafe_allow_html=True
+    )
 
-    with m_col2:
-        lbl2 = "📝 Mock Test Engine" if st.session_state.active_main_menu != "Mock Test" else "📝 Mock Test Engine (Active)"
-        if st.button(lbl2, key="main_card_practice", use_container_width=True):
-            st.session_state.active_main_menu = "Mock Test"
-            st.rerun()
+    card1, card2, card3 = st.columns([1, 1, 1], gap="large")
 
-    with m_col3:
-        lbl3 = "📊 My Performance" if st.session_state.active_main_menu != "My Performance" else "📊 My Performance (Active)"
-        if st.button(lbl3, key="main_card_perf", use_container_width=True):
-            st.session_state.active_main_menu = "My Performance"
-            st.rerun()
+    resource_card_options = [
+        "📋 Syllabus", "📖 Learning Resources & Notes", "📝 PYQs",
+        "🎬 Video Lectures", "🔗 Useful Links", "📁 View All Items"
+    ]
+    with card1:
+        with st.container(key="dashboard-card-study"):
+            st.markdown('<div class="dashboard-card-icon">📚</div><div class="dashboard-card-heading">Study Resources</div>', unsafe_allow_html=True)
+            selected_resource = st.selectbox(
+                "Select Category",
+                resource_card_options,
+                index=resource_card_options.index(st.session_state.dashboard_resource_category)
+                if st.session_state.dashboard_resource_category in resource_card_options else 0,
+                key="dashboard_resource_category"
+            )
+            st.write("")
+            if st.button("Explore Resources  →", key="dashboard_open_resources", use_container_width=True):
+                st.session_state.active_main_menu = "Study Resources"
+                st.session_state.active_resource_cat = selected_resource
+                st.rerun()
 
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown("---")
+    module_options = UNIT_LIST + ["🏆 Full Paper Mock Test (100 Questions - 120 Mins - 200 Marks)"]
+    with card2:
+        with st.container(key="dashboard-card-practice"):
+            st.markdown('<div class="dashboard-card-icon">📝</div><div class="dashboard-card-heading">Practice Set Engine</div>', unsafe_allow_html=True)
+            selected_dashboard_module = st.selectbox(
+                "Select Test Module",
+                module_options,
+                index=module_options.index(st.session_state.dashboard_test_module)
+                if st.session_state.dashboard_test_module in module_options else 0,
+                key="dashboard_test_module"
+            )
+            st.write("")
+            if st.button("Open Practice Engine  →", key="dashboard_open_practice", use_container_width=True):
+                st.session_state.active_main_menu = "Mock Test"
+                st.session_state.selected_test_module = selected_dashboard_module
+                st.rerun()
+
+    # Pull the student's real attempt history for the dashboard summary.
+    dashboard_attempts = []
+    dashboard_avg = 0.0
+    dashboard_best = 0.0
+    dashboard_count = 0
+    try:
+        dashboard_email = st.session_state.user.get("email")
+        if dashboard_email:
+            dashboard_result = (
+                db.table("quiz_attempts").select("*")
+                .eq("student_email", dashboard_email)
+                .order("attempted_at", desc=True).execute()
+            )
+            dashboard_attempts = dashboard_result.data if dashboard_result.data else []
+        if dashboard_attempts:
+            dashboard_count = len(dashboard_attempts)
+            dashboard_avg = sum(float(a.get("percentage", 0) or 0) for a in dashboard_attempts) / dashboard_count
+            dashboard_best = max(float(a.get("percentage", 0) or 0) for a in dashboard_attempts)
+    except Exception:
+        # Keep the dashboard usable even if the performance summary cannot load.
+        dashboard_attempts = []
+
+    with card3:
+        with st.container(key="dashboard-card-performance"):
+            st.markdown('<div class="dashboard-card-icon">📈</div><div class="dashboard-card-heading">My Performance</div>', unsafe_allow_html=True)
+            if dashboard_count:
+                avg_display = max(0, min(100, dashboard_avg))
+                st.markdown(
+                    f'<div class="performance-number">{avg_display:.0f}%</div>'
+                    '<div class="performance-caption">Average score across your attempts</div>'
+                    f'<div class="performance-track"><div class="performance-fill" style="width:{avg_display:.1f}%"></div></div>'
+                    f'<div class="performance-stat"><span>Tests Taken</span><strong>{dashboard_count}</strong></div>'
+                    f'<div class="performance-stat"><span>Best Score</span><strong>{dashboard_best:.1f}%</strong></div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    '<div class="performance-number">—</div>'
+                    '<div class="performance-caption">Your progress will appear here</div>'
+                    '<div style="color:#F0E5FF; text-align:center; margin:26px 0;">Take your first practice test to start tracking your performance.</div>',
+                    unsafe_allow_html=True
+                )
+            st.write("")
+            if st.button("View Detailed Performance  →", key="dashboard_open_performance", use_container_width=True):
+                st.session_state.active_main_menu = "My Performance"
+                st.rerun()
+
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     # Single Unified Resource Card Helper
     def render_single_unified_card(item):
@@ -421,18 +441,18 @@ def render_student_portal(db: Client):
         link_html = ""
         if url:
             if "youtube" in url or cat == "Video Lectures":
-                link_html = f'<div style="margin-top: 12px;"><a href="{url}" target="_blank" style="display: inline-block; background: {btn_bg}; color: {btn_text} !important; font-weight: bold; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;">🎬 Watch Video Lecture ➔</a></div>'
+                link_html = f'<div style="margin-top: 12px;"><a href="{url}" target="_blank" style="display: inline-block; background: {btn_bg}; color: {btn_text} !important; font-weight: bold; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-family: Times New Roman, Times, serif;">🎬 Watch Video Lecture ➔</a></div>'
             else:
-                link_html = f'<div style="margin-top: 12px;"><a href="{url}" target="_blank" style="display: inline-block; background: {btn_bg}; color: {btn_text} !important; font-weight: bold; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;">🔗 Open / Download Resource ➔</a></div>'
+                link_html = f'<div style="margin-top: 12px;"><a href="{url}" target="_blank" style="display: inline-block; background: {btn_bg}; color: {btn_text} !important; font-weight: bold; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-family: Times New Roman, Times, serif;">🔗 Open / Download Resource ➔</a></div>'
         else:
-            link_html = '<div style="margin-top: 10px; font-style: italic; color: #CBD5E1; font-size: 0.9rem; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;">No external file link attached.</div>'
+            link_html = '<div style="margin-top: 10px; font-style: italic; color: #CBD5E1; font-size: 0.9rem; font-family: Times New Roman, Times, serif;">No external file link attached.</div>'
             
         single_card_html = f"""
         <div style="background: {card_bg}; border-left: 6px solid {border_color}; border-radius: 14px; padding: 20px 24px; margin-bottom: 18px; box-shadow: 0 4px 16px rgba(0,0,0,0.18);">
-            <div style="font-weight: bold; font-size: 1.25rem; color: {title_color}; margin-bottom: 6px; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;">
+            <div style="font-weight: bold; font-size: 1.25rem; color: {title_color}; margin-bottom: 6px; font-family: Times New Roman, Times, serif;">
                 {clean_title_str}
             </div>
-            <div style="font-size: 0.98rem; color: {meta_color}; margin-bottom: 8px; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;">
+            <div style="font-size: 0.98rem; color: {meta_color}; margin-bottom: 8px; font-family: Times New Roman, Times, serif;">
                 🎯 <strong>Subject:</strong> {subj} &nbsp;|&nbsp; 📋 <strong>Category:</strong> {cat}
             </div>
             {link_html}
@@ -474,7 +494,7 @@ def render_student_portal(db: Client):
             st.session_state.active_resource_cat = sel_cat
 
             st.markdown("---")
-            st.markdown(f"<h4 style='color: #092169; font-family: Times New Roman, Times, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, serif;'>Viewing Category: {sel_cat}</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='color: #092169; font-family: Times New Roman, Times, serif;'>Viewing Category: {sel_cat}</h4>", unsafe_allow_html=True)
 
             if sel_cat == "📁 View All Items":
                 if relevant_items:
@@ -503,7 +523,12 @@ def render_student_portal(db: Client):
             st.info(f"🎯 **Target Practice:** Select a Unit Test or Full Paper Mock Test for **{user_subject}**.")
             
             module_options = UNIT_LIST + ["🏆 Full Paper Mock Test (100 Questions - 120 Mins - 200 Marks)"]
-            selected_mod = st.selectbox("🎯 Select Test Module Dropdown:", module_options)
+            selected_mod = st.selectbox(
+                "🎯 Select Test Module Dropdown:",
+                module_options,
+                index=module_options.index(st.session_state.get("selected_test_module", module_options[0]))
+                if st.session_state.get("selected_test_module", module_options[0]) in module_options else 0
+            )
             
             if "Full Paper" in selected_mod:
                 st.write("📋 **Test Rules:** 100 Questions (10 Questions drawn from each of the 10 Units). Time limit: **120 Minutes**. 2 Marks per question (Total: 200 Marks). No negative marking.")
@@ -523,6 +548,7 @@ def render_student_portal(db: Client):
                         if "Full Paper" in selected_mod:
                             used_ids = set()
                             unit_selected = []
+                            
                             for u_idx in range(1, 11):
                                 u_pool = [q for q in subj_qs if is_unit_match(q, u_idx) and id(q) not in used_ids]
                                 if len(u_pool) >= 10:
@@ -532,6 +558,7 @@ def render_student_portal(db: Client):
                                 for q in chosen:
                                     used_ids.add(id(q))
                                     unit_selected.append(q)
+                                    
                             selected_qs.extend(unit_selected)
                             
                             if len(selected_qs) < 100:
@@ -729,19 +756,19 @@ def render_student_portal(db: Client):
             res = st.session_state.last_score
             st.success("🎉 Test Submitted Successfully!")
             
-            s_val = res.get('score')
-            m_val = res.get('max_score')
+            sc_val = res.get('score')
+            mx_val = res.get('max_score')
             p_val = res.get('pct')
-            c_val = res.get('correct_cnt')
-            t_val = res.get('total_q')
+            cc_val = res.get('correct_cnt')
+            tq_val = res.get('total_q')
             
             m1, m2, m3 = st.columns(3)
             with m1:
-                st.metric("Total Score", f"{s_val}/{m_val}")
+                st.metric("Total Score", f"{sc_val}/{mx_val}")
             with m2:
                 st.metric("Percentage", f"{p_val:.2f}%")
             with m3:
-                st.metric("Correct Answers", f"{c_val}/{t_val}")
+                st.metric("Correct Answers", f"{cc_val}/{tq_val}")
             
             st.markdown("---")
             st.subheader("📖 Detailed Question Review & Answer Keys")
@@ -752,9 +779,9 @@ def render_student_portal(db: Client):
                 is_correct = user_ans == correct_key
                 
                 status_icon = "✅ Correct" if is_correct else ("❌ Incorrect" if user_ans != "Unattempted" else "⚪ Unattempted")
-                q_txt = q.get('question_text', 'Question text')
+                q_heading = q.get('question_text', 'Question text')
                 
-                with st.expander(f"Q{idx}: {q_txt} [{status_icon}]"):
+                with st.expander(f"Q{idx}: {q_heading} [{status_icon}]"):
                     optA = get_option_val(q, 'A')
                     optB = get_option_val(q, 'B')
                     optC = get_option_val(q, 'C')
@@ -779,7 +806,7 @@ def render_student_portal(db: Client):
     # SECTION 3: MY PERFORMANCE
     # =========================================================================
     elif st.session_state.active_main_menu == "My Performance":
-        st.subheader("📈 My Learning Journey & Performance Analytics")
+        st.subheader("📊 My Performance & Attempt History")
         student_email = st.session_state.user.get("email")
         
         try:
@@ -800,10 +827,10 @@ def render_student_portal(db: Client):
                     st.metric("Best Score %", f"{best_pct:.1f}%")
                 
                 st.markdown("---")
-                st.markdown("#### 📜 Detailed Test Attempt History Table")
+                st.markdown("<h4 style='color: #092169; font-family: Times New Roman, Times, serif;'>📜 Detailed Attempt History Table</h4>", unsafe_allow_html=True)
                 st.dataframe(attempts, use_container_width=True)
             else:
-                st.info("You haven't attempted any practice tests yet. Go to the **Mock Test Engine** to take your first test!")
+                st.info("You haven't attempted any practice tests yet. Go to the **Mock Test Engine** tab to take your first test!")
         except Exception as e:
             st.error(f"Error loading performance history: {e}")
 
