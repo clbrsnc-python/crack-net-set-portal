@@ -138,14 +138,13 @@ def clean_arrow_tokens(val) -> str:
     if s.lower() in ["none", "null", "nan"]:
         return ""
 
-    # Normalize line breaks and carriage returns
+    # Normalize line breaks
     s = s.replace('\r\n', '\n').replace('\r', '')
 
-    # Direct string replacements (case-insensitive) for all right-arrow variants
     exact_right = [
+        '\\rightarrow', '\rightarrow', '\\rarrow', '\rarrow', 'rarrow',
         ':arrow_right:', '[arrow_right]', '(arrow_right)', '_arrow_right_', '_arrow_right', 'arrow_right_', 'arrow_right',
         ':right_arrow:', '[right_arrow]', '(right_arrow)', '_right_arrow_', '_right_arrow', 'right_arrow_', 'right_arrow',
-        r'\rightarrow', r'\rarrow', r'\to',
         '-->', '==>', '->', '=>', '➔', '➜', '&rarr;', '&rightarrow;'
     ]
     for tok in exact_right:
@@ -153,9 +152,9 @@ def clean_arrow_tokens(val) -> str:
         s = s.replace(tok.upper(), ' → ')
 
     exact_left = [
+        '\\leftarrow', '\leftarrow', '\\larrow', '\larrow', 'larrow',
         ':arrow_left:', '[arrow_left]', '(arrow_left)', '_arrow_left_', '_arrow_left', 'arrow_left_', 'arrow_left',
         ':left_arrow:', '[left_arrow]', '(left_arrow)', '_left_arrow_', '_left_arrow', 'left_arrow_', 'left_arrow',
-        r'\leftarrow', r'\larrow', r'\gets',
         '<--', '<==', '<-', '<=', '&larr;', '&leftarrow;'
     ]
     for tok in exact_left:
@@ -171,16 +170,10 @@ def clean_arrow_tokens(val) -> str:
         s = pattern.sub(' ← ', s)
 
     # Clean up formatting around arrows and stray punctuation
-    s = re.sub(r'[_:\(\)\[\]]+\s*→\s*[_:\(\)\[\]]*', ' → ', s)
-    s = re.sub(r'[_:\(\)\[\]]*\s*→\s*[_:\(\)\[\]]+', ' → ', s)
-    s = re.sub(r'_+\s*→\s*_*', ' → ', s)
-    s = re.sub(r'_+\s*←\s*_*', ' ← ', s)
-    s = re.sub(r'\s*→\s*', ' → ', s)
-    s = re.sub(r'\s*←\s*', ' ← ', s)
-
-    s = re.sub(r'[ \t]+', ' ', s)
-    s = re.sub(r'[ \t]+([,.;:!?])', r'\1', s)
-    s = re.sub(r'([,.;:!?])(?=[A-Za-z0-9])', r'\1 ', s)
+    s = re.sub(r'[_:\s]*→[_:\s]*', ' → ', s)
+    s = re.sub(r'[_:\s]*←[_:\s]*', ' ← ', s)
+    s = re.sub(r'\s+', ' ', s)
+    s = re.sub(r'\s+([,.;:!?])', r'\1', s)
     return s.strip()
 
 ROMAN_MAP = {1: 'i', 2: 'ii', 3: 'iii', 4: 'iv', 5: 'v', 6: 'vi', 7: 'vii', 8: 'viii', 9: 'ix', 10: 'x'}
@@ -789,7 +782,65 @@ def render_student_portal(db: Client):
         transform: translateY(-2px) !important;
         filter: brightness(1.2) !important;
     }
-</style>
+
+    /* Practice Test Action Buttons (Prev, Skip, Save & Next, Submit) */
+    .st-key-test-btn-prev [data-testid="stButton"] button,
+    .st-key-test-btn-prev button {
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important;
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        border: 2px solid #64748B !important;
+        border-radius: 10px !important;
+        font-weight: 800 !important;
+        min-height: 48px !important;
+    }
+    .st-key-test-btn-skip [data-testid="stButton"] button,
+    .st-key-test-btn-skip button {
+        background: linear-gradient(135deg, #D97706 0%, #B45309 100%) !important;
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        border: 2px solid #FBBF24 !important;
+        border-radius: 10px !important;
+        font-weight: 800 !important;
+        min-height: 48px !important;
+    }
+    .st-key-test-btn-save [data-testid="stButton"] button,
+    .st-key-test-btn-save button {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        border: 2px solid #34D399 !important;
+        border-radius: 10px !important;
+        font-weight: 800 !important;
+        min-height: 48px !important;
+    }
+    .st-key-test-btn-submit [data-testid="stButton"] button,
+    .st-key-test-btn-submit button {
+        background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%) !important;
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        border: 2px solid #FCA5A5 !important;
+        border-radius: 10px !important;
+        font-weight: 800 !important;
+        min-height: 48px !important;
+    }
+    .st-key-test-btn-prev button *,
+    .st-key-test-btn-skip button *,
+    .st-key-test-btn-save button *,
+    .st-key-test-btn-submit button * {
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        opacity: 1 !important;
+    }
+    .st-key-test-btn-prev button:hover,
+    .st-key-test-btn-skip button:hover,
+    .st-key-test-btn-save button:hover,
+    .st-key-test-btn-submit button:hover {
+        filter: brightness(1.15) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    </style>
     """, unsafe_allow_html=True)
 
     # Header retained; requested redesign is limited to the three main cards.
@@ -1264,39 +1315,38 @@ def render_student_portal(db: Client):
                     with st.container(key="test-btn-submit"):
                         if st.button("🏁 Submit Test", type="primary", key="btn_action_submit"):
                             total_q = len(st.session_state.test_questions)
-                        correct_cnt = 0
-                        for idx, q in enumerate(st.session_state.test_questions):
-                            c_key = get_clean_str(q.get("correct_option")).upper()
-                            if st.session_state.user_answers.get(idx) == c_key:
-                                correct_cnt += 1
-                        score_val = correct_cnt * 2
-                        max_score = total_q * 2
-                        pct = (score_val / max_score * 100) if max_score > 0 else 0.0
-                    
-                        try:
-                            db.table("quiz_attempts").insert({
-                                "student_email": st.session_state.user.get("email"),
-                                "subject": user_subject,
-                                "unit_name": st.session_state.test_module,
-                                "score": f"{score_val}/{max_score}",
-                                "total_questions": total_q,
-                                "percentage": round(pct, 2)
-                            }).execute()
-                        except Exception as e:
-                            st.error(f"Error logging result: {e}")
+                            correct_cnt = 0
+                            for idx, q in enumerate(st.session_state.test_questions):
+                                c_key = get_clean_str(q.get("correct_option")).upper()
+                                if st.session_state.user_answers.get(idx) == c_key:
+                                    correct_cnt += 1
+                            score_val = correct_cnt * 2
+                            max_score = total_q * 2
+                            pct = (score_val / max_score * 100) if max_score > 0 else 0.0
                         
-                        st.session_state.last_score = {
-                            "score": score_val,
-                            "max_score": max_score,
-                            "pct": pct,
-                            "correct_cnt": correct_cnt,
-                            "total_q": total_q
-                        }
-                        st.session_state.test_active = False
-                        st.session_state.test_completed = True
-                        st.rerun()
+                            try:
+                                db.table("quiz_attempts").insert({
+                                    "student_email": st.session_state.user.get("email"),
+                                    "subject": user_subject,
+                                    "unit_name": st.session_state.test_module,
+                                    "score": f"{score_val}/{max_score}",
+                                    "total_questions": total_q,
+                                    "percentage": round(pct, 2)
+                                }).execute()
+                            except Exception as e:
+                                st.error(f"Error logging result: {e}")
+                            
+                            st.session_state.last_score = {
+                                "score": score_val,
+                                "max_score": max_score,
+                                "pct": pct,
+                                "correct_cnt": correct_cnt,
+                                "total_q": total_q
+                            }
+                            st.session_state.test_active = False
+                            st.session_state.test_completed = True
+                            st.rerun()
 
-                st.markdown("---")
                 st.markdown("##### 🧭 Question Palette Navigation")
                 st.caption("🔵 Active Question &nbsp;|&nbsp; 🟢 Answered &nbsp;|&nbsp; ⚪ Unanswered")
                 with st.container(key="question-palette-container"):
