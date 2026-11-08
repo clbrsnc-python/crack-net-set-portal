@@ -493,8 +493,25 @@ def render_student_portal(db: Client):
             )
             st.session_state.active_resource_cat = sel_cat
 
-            st.markdown("---")
-            st.markdown(f"<h4 style='color: #092169; font-family: Times New Roman, Times, serif;'>Viewing Category: {sel_cat}</h4>", unsafe_allow_html=True)
+            st.markdown(
+    f"""
+    <div style="
+        background-color: #FFFFFF;
+        color: #092169;
+        padding: 12px 16px;
+        margin: 12px 0 18px 0;
+        border-left: 4px solid #C5A45B;
+        border-bottom: 1px solid #E5E7EB;
+        border-radius: 4px;
+        font-family: 'Times New Roman', serif;
+        font-size: 19px;
+        font-weight: 600;
+    ">
+        Viewing Category: {sel_cat}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
             if sel_cat == "📁 View All Items":
                 if relevant_items:
