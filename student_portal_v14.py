@@ -514,6 +514,81 @@ def render_student_portal(db: Client):
         .omni-title { font-size: 1.85rem; }
         .omni-tagline { font-size: 1.05rem; }
     }
+
+    /* V19 accessibility fix: Streamlit alert boxes use light surfaces, so their
+       text must be dark (not inherited from the navy content panel). */
+    .st-key-content-panel-study [data-testid="stAlert"],
+    .st-key-content-panel-practice [data-testid="stAlert"],
+    .st-key-content-panel-performance [data-testid="stAlert"] {
+        background: #F1F5F9 !important;
+        border: 1px solid #CBD5E1 !important;
+        color: #172033 !important;
+    }
+    .st-key-content-panel-study [data-testid="stAlert"] *,
+    .st-key-content-panel-practice [data-testid="stAlert"] *,
+    .st-key-content-panel-performance [data-testid="stAlert"] * {
+        color: #172033 !important;
+        opacity: 1 !important;
+        -webkit-text-fill-color: #172033 !important;
+    }
+    .st-key-content-panel-study [data-testid="stAlert"] strong,
+    .st-key-content-panel-practice [data-testid="stAlert"] strong,
+    .st-key-content-panel-performance [data-testid="stAlert"] strong {
+        color: #092169 !important;
+        font-weight: 800 !important;
+    }
+
+    /* Back-to-dashboard controls: force readable contrast in normal, hover,
+       focus and active states (Streamlit's default hover can be near-white). */
+    .st-key-back_to_dashboard_resources [data-testid="stButton"] button,
+    .st-key-back_to_dashboard_practice [data-testid="stButton"] button,
+    .st-key-back_to_dashboard_performance [data-testid="stButton"] button {
+        background: linear-gradient(135deg, #F6D77A, #D9A62E) !important;
+        color: #172033 !important;
+        -webkit-text-fill-color: #172033 !important;
+        border: 2px solid #FFE39A !important;
+        border-radius: 10px !important;
+        font-weight: 900 !important;
+        text-shadow: none !important;
+        box-shadow: 0 3px 10px rgba(0,0,0,.22) !important;
+    }
+    .st-key-back_to_dashboard_resources [data-testid="stButton"] button *,
+    .st-key-back_to_dashboard_practice [data-testid="stButton"] button *,
+    .st-key-back_to_dashboard_performance [data-testid="stButton"] button * {
+        color: #172033 !important;
+        -webkit-text-fill-color: #172033 !important;
+    }
+    .st-key-back_to_dashboard_resources [data-testid="stButton"] button:hover,
+    .st-key-back_to_dashboard_practice [data-testid="stButton"] button:hover,
+    .st-key-back_to_dashboard_performance [data-testid="stButton"] button:hover,
+    .st-key-back_to_dashboard_resources [data-testid="stButton"] button:focus,
+    .st-key-back_to_dashboard_practice [data-testid="stButton"] button:focus,
+    .st-key-back_to_dashboard_performance [data-testid="stButton"] button:focus,
+    .st-key-back_to_dashboard_resources [data-testid="stButton"] button:active,
+    .st-key-back_to_dashboard_practice [data-testid="stButton"] button:active,
+    .st-key-back_to_dashboard_performance [data-testid="stButton"] button:active {
+        background: #FFE8A3 !important;
+        color: #111827 !important;
+        -webkit-text-fill-color: #111827 !important;
+        border-color: #FFFFFF !important;
+        filter: none !important;
+        transform: translateY(-1px);
+    }
+    .st-key-back_to_dashboard_resources [data-testid="stButton"] button:hover *,
+    .st-key-back_to_dashboard_practice [data-testid="stButton"] button:hover *,
+    .st-key-back_to_dashboard_performance [data-testid="stButton"] button:hover * {
+        color: #111827 !important;
+        -webkit-text-fill-color: #111827 !important;
+    }
+
+    /* Keep all normal explanatory text in the dark content panels readable.
+       Alert surfaces above intentionally override this with dark text. */
+    .st-key-content-panel-study [data-testid="stMarkdownContainer"] p,
+    .st-key-content-panel-practice [data-testid="stMarkdownContainer"] p,
+    .st-key-content-panel-performance [data-testid="stMarkdownContainer"] p {
+        color: #F8FAFC !important;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
